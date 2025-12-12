@@ -1,0 +1,653 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<style>
+    /* Custom Multi-Select Styles */
+    .custom-multiselect {
+        position: relative;
+        width: 100%;
+        margin-bottom: 1rem;
+    }
+
+    .multiselect-container {
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        background: white;
+        padding: 8px;
+        min-height: 42px;
+        cursor: text;
+        transition: all 0.2s;
+    }
+
+    .multiselect-container:hover {
+        border-color: #3b82f6;
+    }
+
+    .multiselect-container.active {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .multiselect-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 4px;
+    }
+
+    .multiselect-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #3b82f6;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        animation: tagAppear 0.2s ease;
+    }
+
+    @keyframes tagAppear {
+        from {
+            opacity: 0;
+            transform: scale(0.8);
+        }
+
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    .multiselect-tag-remove {
+        cursor: pointer;
+        font-weight: bold;
+        opacity: 0.8;
+        transition: opacity 0.2s;
+    }
+
+    .multiselect-tag-remove:hover {
+        opacity: 1;
+    }
+
+    .multiselect-search {
+        border: none;
+        outline: none;
+        width: 100%;
+        padding: 4px;
+        font-size: 14px;
+        font-family: inherit;
+    }
+
+    .multiselect-search::placeholder {
+        color: #9ca3af;
+    }
+
+    .multiselect-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        margin-top: 4px;
+        background: white;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        max-height: 250px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+        animation: dropdownAppear 0.2s ease;
+    }
+
+    @keyframes dropdownAppear {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .multiselect-dropdown.active {
+        display: block;
+    }
+
+    .multiselect-option {
+        padding: 10px 12px;
+        cursor: pointer;
+        transition: background 0.15s;
+        font-size: 14px;
+        border-bottom: 1px solid #f3f4f6;
+    }
+
+    .multiselect-option:last-child {
+        border-bottom: none;
+    }
+
+    .multiselect-option:hover {
+        background: #f3f4f6;
+    }
+
+    .multiselect-option.selected {
+        background: #eff6ff;
+        color: #3b82f6;
+        font-weight: 500;
+    }
+
+    .multiselect-option.selected::before {
+        content: "✓ ";
+        font-weight: bold;
+    }
+
+    .multiselect-option.hidden {
+        display: none;
+    }
+
+    .multiselect-dropdown::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .multiselect-dropdown::-webkit-scrollbar-track {
+        background: #f3f4f6;
+        border-radius: 4px;
+    }
+
+    .multiselect-dropdown::-webkit-scrollbar-thumb {
+        background: #d1d5db;
+        border-radius: 4px;
+    }
+
+    .multiselect-dropdown::-webkit-scrollbar-thumb:hover {
+        background: #9ca3af;
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.2s;
+    }
+
+    .modal-overlay.active {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .modal-card {
+        background: white;
+        padding: 24px;
+        border-radius: 12px;
+        width: 100%;
+        max-width: 400px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        transform: scale(0.95);
+        transition: transform 0.2s;
+    }
+
+    .modal-overlay.active .modal-card {
+        transform: scale(1);
+    }
+
+    .modal-title {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        color: #111827;
+    }
+
+    .modal-input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        margin-bottom: 12px;
+        font-size: 14px;
+    }
+
+    .modal-input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+
+    .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 20px;
+    }
+
+    .btn-icon-add {
+        background: #2B7A9B;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 20px;
+        line-height: 0;
+        padding: 0;
+        transition: background 0.2s;
+        margin-left: 10px;
+    }
+
+    .btn-icon-add:hover {
+        background: #236a8a;
+    }
+
+    .section-header-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+</style>
+
+<div class="content-card">
+    <div class="dashboard-header-top">
+        <div class="dashboard-brand">DICOM HUB</div>
+    </div>
+    <div class="form-header-custom">
+        <h2 class="form-title-left">Nuevo Experimento</h2>
+        <div class="form-actions-right">
+            <button type="submit" form="experiment-form" class="btn-save-teal">Guardar</button>
+            <a href="{% url 'dashboard' %}" class="btn-cancel-outline">Cancelar</a>
+        </div>
+    </div>
+
+    <form id="experiment-form" method="post">
+        {% csrf_token %}
+
+        <div class="form-grid-two-column">
+            <div class="form-group-small">
+                {{ form.name }}
+            </div>
+            <div class="form-group-large">
+                {{ form.description }}
+                <div class="char-count">0/300</div>
+            </div>
+        </div>
+
+        <div class="form-grid-two-column">
+            <div class="dynamic-section">
+                <div class="section-header-row">
+                    <h3 class="section-title-left" style="margin-bottom: 0;">Participantes</h3>
+                    <button type="button" id="add-participant-btn" class="btn-icon-add"
+                        title="Crear nuevo participante">+</button>
+                </div>
+                <div class="custom-multiselect" id="participants-multiselect">
+                    <div class="multiselect-container">
+                        <div class="multiselect-tags" id="participants-tags"></div>
+                        <input type="text" class="multiselect-search" placeholder="Buscar participantes...">
+                    </div>
+                    <div class="multiselect-dropdown" id="participants-dropdown"></div>
+                    {{ form.participants }}
+                </div>
+            </div>
+
+            <div class="dynamic-section">
+                <div class="section-header-row">
+                    <h3 class="section-title-left" style="margin-bottom: 0;">Miembros del Equipo</h3>
+                    <button type="button" id="add-member-btn" class="btn-icon-add"
+                        title="Crear nuevo miembro">+</button>
+                </div>
+                <div class="custom-multiselect" id="members-multiselect">
+                    <div class="multiselect-container">
+                        <div class="multiselect-tags" id="members-tags"></div>
+                        <input type="text" class="multiselect-search" placeholder="Buscar miembros...">
+                    </div>
+                    <div class="multiselect-dropdown" id="members-dropdown"></div>
+                    {{ form.members }}
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Modal Create Participant -->
+<div id="modal-participant" class="modal-overlay">
+    <div class="modal-card">
+        <h3 class="modal-title">Nuevo Participante</h3>
+        <input type="text" id="new-participant-name" class="modal-input" placeholder="Nombre y Apellido">
+        <div class="modal-actions">
+            <button type="button" id="cancel-participant" class="btn-cancel-outline">Cancelar</button>
+            <button type="button" id="save-participant" class="btn-save-teal">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Create Member -->
+<div id="modal-member" class="modal-overlay">
+    <div class="modal-card">
+        <h3 class="modal-title">Nuevo Miembro</h3>
+        <input type="text" id="new-member-name" class="modal-input" placeholder="Nombre y Apellido">
+        <select id="new-member-role" class="modal-input">
+            <option value="">Seleccionar Rol</option>
+            <option value="Líder Científico/a">Líder Científico/a</option>
+            <option value="Co-investigador/a">Co-investigador/a</option>
+            <option value="Investigador/a Posdoctoral">Investigador/a Posdoctoral</option>
+            <option value="Coordinador/a de Investigación">Coordinador/a de Investigación</option>
+            <option value="Coordinador/a Clínico">Coordinador/a Clínico</option>
+            <option value="Neurólogo/a">Neurólogo/a</option>
+            <option value="Técnico/a en Neuroimagen">Técnico/a en Neuroimagen</option>
+            <option value="Ingeniero/a Biomédico/a">Ingeniero/a Biomédico/a</option>
+            <option value="Especialista en Procesamiento de Imágenes">Especialista en Procesamiento de Imágenes</option>
+            <option value="Asistente de Investigación">Asistente de Investigación</option>
+            <option value="Bioestadístico/a o Científico/a de Datos">Bioestadístico/a o Científico/a de Datos</option>
+        </select>
+        <div class="modal-actions">
+            <button type="button" id="cancel-member" class="btn-cancel-outline">Cancelar</button>
+            <button type="button" id="save-member" class="btn-save-teal">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Custom Multi-Select Component
+    class CustomMultiSelect {
+        constructor(containerId, selectElement) {
+            this.container = document.getElementById(containerId);
+            this.select = selectElement;
+            this.searchInput = this.container.querySelector('.multiselect-search');
+            this.dropdown = this.container.querySelector('.multiselect-dropdown');
+            this.tagsContainer = this.container.querySelector('.multiselect-tags');
+            this.multiselectContainer = this.container.querySelector('.multiselect-container');
+            this.selectedValues = new Set();
+
+            this.init();
+        }
+
+        init() {
+            // Hide original select
+            this.select.style.display = 'none';
+
+            // Build dropdown options
+            this.buildDropdown();
+
+            // Event listeners
+            this.searchInput.addEventListener('input', () => this.filterOptions());
+            this.searchInput.addEventListener('focus', () => this.openDropdown());
+            this.multiselectContainer.addEventListener('click', () => this.searchInput.focus());
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!this.container.contains(e.target)) {
+                    this.closeDropdown();
+                }
+            });
+        }
+
+        buildDropdown() {
+            this.dropdown.innerHTML = '';
+            const options = this.select.querySelectorAll('option');
+
+            options.forEach(option => {
+                const div = document.createElement('div');
+                div.className = 'multiselect-option';
+                div.textContent = option.textContent;
+                div.dataset.value = option.value;
+
+                div.addEventListener('click', () => this.toggleOption(option.value, option.textContent));
+
+                this.dropdown.appendChild(div);
+            });
+        }
+
+        toggleOption(value, text) {
+            if (this.selectedValues.has(value)) {
+                this.removeValue(value);
+            } else {
+                this.addValue(value, text);
+            }
+            this.updateSelect();
+            this.updateDropdownState();
+        }
+
+        addValue(value, text) {
+            this.selectedValues.add(value);
+
+            const tag = document.createElement('div');
+            tag.className = 'multiselect-tag';
+            tag.dataset.value = value;
+            tag.innerHTML = `
+            <span>${text}</span>
+            <span class="multiselect-tag-remove">×</span>
+        `;
+
+            tag.querySelector('.multiselect-tag-remove').addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.removeValue(value);
+                this.updateSelect();
+                this.updateDropdownState();
+            });
+
+            this.tagsContainer.appendChild(tag);
+        }
+
+        removeValue(value) {
+            this.selectedValues.delete(value);
+            const tag = this.tagsContainer.querySelector(`[data-value="${value}"]`);
+            if (tag) {
+                tag.remove();
+            }
+        }
+
+        updateSelect() {
+            const options = this.select.querySelectorAll('option');
+            options.forEach(option => {
+                option.selected = this.selectedValues.has(option.value);
+            });
+        }
+
+        updateDropdownState() {
+            const options = this.dropdown.querySelectorAll('.multiselect-option');
+            options.forEach(option => {
+                if (this.selectedValues.has(option.dataset.value)) {
+                    option.classList.add('selected');
+                } else {
+                    option.classList.remove('selected');
+                }
+            });
+        }
+
+        filterOptions() {
+            const searchTerm = this.searchInput.value.toLowerCase();
+            const options = this.dropdown.querySelectorAll('.multiselect-option');
+
+            options.forEach(option => {
+                const text = option.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    option.classList.remove('hidden');
+                } else {
+                    option.classList.add('hidden');
+                }
+            });
+        }
+
+        openDropdown() {
+            this.dropdown.classList.add('active');
+            this.multiselectContainer.classList.add('active');
+        }
+
+        closeDropdown() {
+            this.dropdown.classList.remove('active');
+            this.multiselectContainer.classList.remove('active');
+            this.searchInput.value = '';
+            this.filterOptions();
+        }
+    }
+
+    // Initialize on DOM ready
+    document.addEventListener('DOMContentLoaded', function () {
+        // Character counter
+        const descriptionField = document.querySelector('textarea[name="description"]');
+        if (descriptionField) {
+            descriptionField.addEventListener('input', function () {
+                const charCount = this.value.length;
+                const counter = document.querySelector('.char-count');
+                if (counter) {
+                    counter.textContent = charCount + '/300';
+                }
+            });
+        }
+
+        // Initialize custom multi-selects
+        const participantsSelect = document.querySelector('select[name="participants"]');
+        const membersSelect = document.querySelector('select[name="members"]');
+        let participantsWidget = null;
+        let membersWidget = null;
+
+        if (participantsSelect) {
+            participantsWidget = new CustomMultiSelect('participants-multiselect', participantsSelect);
+        }
+
+        if (membersSelect) {
+            membersWidget = new CustomMultiSelect('members-multiselect', membersSelect);
+        }
+
+        // Quick Creation Logic
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        function toggleModal(id, show) {
+            const modal = document.getElementById(id);
+            if (show) modal.classList.add('active');
+            else modal.classList.remove('active');
+        }
+
+        // Participant Logic
+        const addPartBtn = document.getElementById('add-participant-btn');
+        if (addPartBtn) {
+            addPartBtn.addEventListener('click', () => {
+                document.getElementById('new-participant-name').value = '';
+                toggleModal('modal-participant', true);
+            });
+        }
+
+        const cancelPartBtn = document.getElementById('cancel-participant');
+        if (cancelPartBtn) {
+            cancelPartBtn.addEventListener('click', () => toggleModal('modal-participant', false));
+        }
+
+        const savePartBtn = document.getElementById('save-participant');
+        if (savePartBtn) {
+            savePartBtn.addEventListener('click', () => {
+                const nameInput = document.getElementById('new-participant-name');
+                const name = nameInput.value;
+                if (!name) {
+                    alert('Por favor ingresa un nombre.');
+                    return;
+                }
+
+                fetch("{% url 'create_participant_ajax' %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ full_name: name })
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            // Create new option
+                            const option = new Option(data.value, data.id, true, true);
+                            participantsSelect.add(option);
+
+                            // Add to custom widget
+                            if (participantsWidget) {
+                                participantsWidget.buildDropdown(); // Rebuild to include new option
+                                participantsWidget.toggleOption(data.id.toString(), data.value);
+                            }
+
+                            toggleModal('modal-participant', false);
+                        } else {
+                            alert('Error: ' + data.message);
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert('Error de conexión');
+                    });
+            });
+        }
+
+        // Member Logic
+        const addMemBtn = document.getElementById('add-member-btn');
+        if (addMemBtn) {
+            addMemBtn.addEventListener('click', () => {
+                document.getElementById('new-member-name').value = '';
+                document.getElementById('new-member-role').value = '';
+                toggleModal('modal-member', true);
+            });
+        }
+
+        const cancelMemBtn = document.getElementById('cancel-member');
+        if (cancelMemBtn) {
+            cancelMemBtn.addEventListener('click', () => toggleModal('modal-member', false));
+        }
+
+        const saveMemBtn = document.getElementById('save-member');
+        if (saveMemBtn) {
+            saveMemBtn.addEventListener('click', () => {
+                const name = document.getElementById('new-member-name').value;
+                const role = document.getElementById('new-member-role').value;
+
+                if (!name || !role) {
+                    alert('Por favor completa todos los campos.');
+                    return;
+                }
+
+                fetch("{% url 'create_member_ajax' %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ full_name: name, role: role })
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            // Create new option
+                            const option = new Option(data.value, data.id, true, true);
+                            membersSelect.add(option);
+
+                            // Add to custom widget
+                            if (membersWidget) {
+                                membersWidget.buildDropdown();
+                                membersWidget.toggleOption(data.id.toString(), data.value);
+                            }
+
+                            toggleModal('modal-member', false);
+                        } else {
+                            alert('Error: ' + data.message);
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert('Error de conexión');
+                    });
+            });
+        }
+    });
+</script>
+{% endblock %}

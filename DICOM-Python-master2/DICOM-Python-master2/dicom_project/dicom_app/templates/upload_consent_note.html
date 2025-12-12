@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Subir Nota de Consentimiento - DICOM HUB{% endblock %}
+
+{% block content %}
+<div class="dashboard-header-top">
+    <div class="dashboard-brand">DICOM HUB</div>
+</div>
+
+<div class="container mt-4">
+    <div class="content-card">
+        {% if messages %}
+        {% for message in messages %}
+        <div class="success-message">
+            {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <div class="form-header-actions">
+            <h2 class="form-title">Subir Nota de Consentimiento</h2>
+            <div class="form-actions">
+                <a href="{% url 'dashboard' %}" class="btn-cancel">← Volver</a>
+            </div>
+        </div>
+
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <div class="form-group-custom">
+                <label for="consent_file">Seleccionar archivo de consentimiento</label>
+                <input type="file" id="consent_file" name="consent_file" accept=".pdf,.doc,.docx" class="input-custom"
+                    onchange="updateFileName(this)">
+                <div id="fileName" class="text-muted" style="margin-top: 0.5rem;"></div>
+            </div>
+
+            <div style="text-align: center; margin-top: 2rem;">
+                <button type="submit" class="btn-save" style="min-width: 200px;">
+                    <i class="fas fa-upload"></i> Subir Nota
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function updateFileName(input) {
+        const fileName = document.getElementById('fileName');
+        if (input.files.length > 0) {
+            fileName.textContent = `Archivo seleccionado: ${input.files[0].name}`;
+        } else {
+            fileName.textContent = '';
+        }
+    }
+</script>
+{% endblock %}

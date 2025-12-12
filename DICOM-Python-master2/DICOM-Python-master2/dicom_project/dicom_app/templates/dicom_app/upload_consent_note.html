@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="content-card-centered">
+    <div style="text-align: center; margin-bottom: 1rem;">
+    <div class="dashboard-brand">DICOM HUB</div>
+</div>
+    <div class="upload-header-redesigned">
+        <h2 class="upload-title-elegant">Subir Nota de Consentimiento</h2>
+        <a href="{% url 'experiment_detail' experiment.pk %}" class="btn-back-elegant">
+            <i class="fas fa-arrow-left"></i> Volver
+        </a>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" class="upload-form-centered">
+        {% csrf_token %}
+        <div class="file-input-container">
+            <label for="consent_file">Note file</label>
+            <input type="file" name="consent_file" id="consent_file" accept=".pdf,.doc,.docx" required
+                class="file-input-custom" onchange="displayFileName(this)">
+            <div class="file-name-display" id="file-name-display" style="display: none;"></div>
+        </div>
+
+        <div class="upload-button-container">
+            <button type="submit" class="btn-save-teal">Subir Nota</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    function displayFileName(input) {
+        const display = document.getElementById('file-name-display');
+        if (input.files && input.files[0]) {
+            display.textContent = input.files[0].name;
+            display.style.display = 'block';
+        } else {
+            display.style.display = 'none';
+        }
+    }
+</script>
+{% endblock %}
