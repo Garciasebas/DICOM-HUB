@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+
+{% block title %}Éxito - DICOM HUB{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <div class="card success-card">
+        <h1 class="success-title">¡Archivo DICOM subido exitosamente!</h1>
+        <div class="success-actions">
+            <a href="{% url 'dashboard' %}" class="btn btn-primary">Volver al menú principal</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
