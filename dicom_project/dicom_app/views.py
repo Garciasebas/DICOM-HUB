@@ -78,20 +78,25 @@ def process_dicom_file(dicom_file_upload, participant=None, experiment=None):
     
     # Guardar los tags en la base de datos
     dicom_data = []
+    tags_to_create = []
     for element in ds:
-        dicom_entry = DicomTag.objects.create(
+        tag_obj = DicomTag(
             dicom_file=dicom_instance,
             tag=str(element.tag),
             description=element.description(),
             vr=element.VR,
             value=str(element.value)
         )
+        tags_to_create.append(tag_obj)
+        
         dicom_data.append({
-            'tag': dicom_entry.tag,
-            'description': dicom_entry.description,
-            'vr': dicom_entry.vr,
-            'value': dicom_entry.value,
+            'tag': tag_obj.tag,
+            'description': tag_obj.description,
+            'vr': tag_obj.vr,
+            'value': tag_obj.value,
         })
+        
+    DicomTag.objects.bulk_create(tags_to_create)
     
     return dicom_instance, dicom_data
 

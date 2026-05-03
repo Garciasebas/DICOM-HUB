@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - dicom_postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${DB_NAME:-dicom_db}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-garcia2012}
+    ports:
+      - "5432:5432"
+
+  web:
+    build: .
+    volumes:
+      - ./media:/app/media
+      - static_volume:/app/staticfiles
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-dicom_db}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-garcia2012}
+      - SECRET_KEY=${SECRET_KEY:-django-insecure-liogq*39$=fp=x8x7wc55es*b!7vq8(a#t@@op+y11#2y6(pg)}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      - DEBUG=${DEBUG:-True}
+    depends_on:
+      - db
+
+volumes:
+  dicom_postgres_data:
+  static_volume:
