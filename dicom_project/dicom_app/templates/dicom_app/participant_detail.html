@@ -1,115 +1,82 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<style>
-    .detail-container {
-        padding: 40px;
-        background-color: #f8f9fa;
-        min-height: 100vh;
-    }
-
-    .breadcrumb {
-        margin-bottom: 20px;
-        color: #7f8c8d;
-    }
-
-    .breadcrumb a {
-        color: #3498db;
-        text-decoration: none;
-    }
-
-    .participant-header {
-        background: white;
-        padding: 30px;
-        border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        margin-bottom: 30px;
-    }
-
-    .files-section {
-        background: white;
-        padding: 30px;
-        border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    .files-table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
-        margin-top: 20px;
-    }
-
-    .files-table th {
-        text-align: left;
-        padding: 15px;
-        background: #f8f9fa;
-        color: #7f8c8d;
-        font-weight: 600;
-        border-bottom: 2px solid #e9ecef;
-    }
-
-    .files-table td {
-        padding: 15px;
-        border-bottom: 1px solid #e9ecef;
-        color: #2c3e50;
-    }
-
-    .btn-upload {
-        background: #3498db;
-        color: white;
-        padding: 8px 16px;
-        border-radius: 6px;
-        text-decoration: none;
-        font-weight: 500;
-        float: right;
-    }
-</style>
-
-<div class="detail-container">
-    <div class="breadcrumb">
-        <a href="{% url 'dashboard' %}">Dashboard</a> /
-        <a href="{% url 'experiment_detail' participant.experiment.id %}">{{ participant.experiment.name }}</a> /
-        {{ participant.subject_id }}
+<div class="container-fluid p-0" style="background-color: #E6F0FF; min-height: 100vh;">
+    <!-- Header Title -->
+    <div class="row mb-4 pt-4">
+        <div class="col-12 text-center">
+            <h1 style="color: #5B7CFA; font-weight: 800; font-size: 2.5rem; letter-spacing: 2px;">DICOM HUB</h1>
+        </div>
     </div>
 
-    <div class="participant-header">
-        <h1>{{ participant.subject_id }}</h1>
-        <p><strong>Detalles:</strong> {{ participant.details }}</p>
+    <!-- Breadcrumb -->
+    <div class="row justify-content-center px-4 mb-3">
+        <div class="col-12 col-xl-10">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb breadcrumb-custom">
+                    <li class="breadcrumb-item"><a href="{% url 'participant_list' %}" class="breadcrumb-link">Participantes</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Detalle de Participante</li>
+                </ol>
+            </nav>
+        </div>
     </div>
 
-    <div class="files-section">
-        <a href="#" class="btn-upload">Subir DICOM</a>
-        <h3>Archivos DICOM</h3>
+    <!-- Main Card -->
+    <div class="row justify-content-center px-4">
+        <div class="col-12 col-xl-10">
+            <div class="card border-0 shadow-sm" style="border-radius: 20px; padding: 2rem;">
+                <div class="card-body p-0">
 
-        <table class="files-table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Nombre Paciente (DICOM)</th>
-                    <th>Fecha Subida</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for dicom in participant.dicom_files.all %}
-                <tr>
-                    <td>{{ dicom.id }}</td>
-                    <td>{{ dicom.patient_name }}</td>
-                    <td>{{ dicom.upload_date|date:"d/m/Y H:i" }}</td>
-                    <td>
-                        <a href="{% url 'dicomfile_detail' dicom.pk %}" class="btn-view">Ver</a>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="4" style="text-align: center; padding: 30px; color: #95a5a6;">
-                        No hay archivos DICOM asociados a este participante.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                    <div class="participant-header p-4 mb-4 bg-light rounded-3">
+                        <h1 class="h3">{{ participant.subject_id }}</h1>
+                        <p class="mb-0"><strong>Detalles:</strong> {{ participant.details }}</p>
+                    </div>
+
+                    <div class="files-section p-4 bg-light rounded-3">
+                        <a href="#" class="btn btn-primary float-end">Subir DICOM</a>
+                        <h3 class="h5 mb-3">Archivos DICOM</h3>
+
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Nombre Paciente (DICOM)</th>
+                                        <th>Fecha Subida</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for dicom in participant.dicom_files.all %}
+                                    <tr>
+                                        <td>{{ dicom.id }}</td>
+                                        <td>{{ dicom.patient_name }}</td>
+                                        <td>{{ dicom.upload_date|date:"d/m/Y H:i" }}</td>
+                                        <td>
+                                            <a href="{% url 'dicomfile_detail' dicom.pk %}" class="action-link">Detalles</a>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4 text-muted">
+                                            No hay archivos DICOM asociados a este participante.
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+
+<style>
+    .content-area {
+        background-color: #E6F0FF !important;
+        padding: 0 !important;
+    }
+</style>
 {% endblock %}

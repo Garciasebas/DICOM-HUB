@@ -1,93 +1,165 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="content-card">
-    <div class="dashboard-header-top">
-        <div class="dashboard-brand">DICOM HUB</div>
-    </div>
-
-    <div class="form-header-custom">
-        <div>
-            <h2 class="form-title-left">Detalle del Experimentos</h2>
-            <p class="detail-meta-text"><strong>Fecha de creación:</strong> {{ experiment.created_at|date:"Y-m-d H:i" }}
-            </p>
-            <p class="detail-meta-text"><strong>Descripción:</strong>
-                <button id="btn-edit-description" class="btn-edit-small" title="Editar descripción">
-                    <i class="fas fa-pen"></i> Editar
-                </button>
-            </p>
-        </div>
-        <div class="form-actions-right">
-            <a href="{% url 'experiment_delete' experiment.pk %}" class="btn-delete-red">
-                <i class="fas fa-trash-can"></i> Eliminar
-            </a>
-            <a href="{% url 'dashboard' %}" class="btn-cancel-outline">
-                ← Volver al listado
-            </a>
+<div class="container-fluid p-0" style="background-color: #E6F0FF; min-height: 100vh;">
+    <!-- Header Title -->
+    <div class="row mb-4 pt-4">
+        <div class="col-12 text-center">
+            <h1 style="color: #5B7CFA; font-weight: 800; font-size: 2.5rem; letter-spacing: 2px;">DICOM HUB</h1>
         </div>
     </div>
 
-    <div class="description-textarea-box">
-        <!-- Display Mode -->
-        <div id="description-display" class="textarea-readonly">{{ experiment.description|linebreaksbr }}</div>
+    <!-- Breadcrumb -->
+    <div class="row justify-content-center px-4 mb-3">
+        <div class="col-12 col-xl-10">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb breadcrumb-custom">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="breadcrumb-link">Listado de Experimentos</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Detalle del Experimento</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
 
-        <!-- Edit Mode -->
-        <div id="description-edit" style="display: none;">
-            <textarea id="description-input" class="textarea-custom"
-                style="width: 100%; min-height: 150px;">{{ experiment.description }}</textarea>
-            <div class="form-actions-right" style="margin-top: 10px; justify-content: flex-end;">
-                <button id="btn-cancel-edit" class="btn-cancel-outline">Cancelar</button>
-                <button id="btn-save-description" class="btn-save-teal">Guardar cambios</button>
+    <!-- Main Card -->
+    <div class="row justify-content-center px-4">
+        <div class="col-12 col-xl-10">
+            <div class="card border-0 shadow-sm" style="border-radius: 20px; padding: 2rem;">
+                <div class="card-body p-0">
+                    <div class="form-header-custom">
+                        <div>
+                            <h2 class="form-title-left">Detalle del Experimento</h2>
+                            <p class="detail-meta-text mb-3"><strong>Fecha de creación:</strong> {{ experiment.created_at|date:"Y-m-d H:i" }}</p>
+
+                            <div class="mb-3">
+                                <div id="name-display-container" style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <p class="detail-meta-text m-0"><strong>Nombre del experimento:</strong> <span id="name-display-text">{{ experiment.name }}</span></p>
+                                    <button id="btn-edit-name" class="btn-edit-small" title="Editar nombre">
+                                        <i class="fas fa-pen"></i> Editar
+                                    </button>
+                                </div>
+                                <div id="name-edit-container" style="display: none; margin-top: 0.5rem;">
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                        <input type="text" id="name-input" class="form-control" style="max-width: 350px;" value="{{ experiment.name }}">
+                                        <button id="btn-save-name" class="btn-save-teal">Guardar cambios</button>
+                                        <button id="btn-cancel-name" class="btn-cancel-outline">Cancelar</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <div id="description-display-container" style="display: flex; align-items: flex-start; gap: 0.5rem;">
+                                    <p class="detail-meta-text m-0"><strong>Descripción:</strong> <span id="description-display-text">{{ experiment.description }}</span></p>
+                                    <button id="btn-edit-description" class="btn-edit-small" title="Editar descripción">
+                                        <i class="fas fa-pen"></i> Editar
+                                    </button>
+                                </div>
+                                <div id="description-edit-container" style="display: none; margin-top: 0.5rem;">
+                                    <textarea id="description-input" class="textarea-custom"
+                                        style="width: 100%; min-height: 120px;">{{ experiment.description }}</textarea>
+                                    <div class="form-actions-right" style="margin-top: 10px; justify-content: flex-end;">
+                                        <button id="btn-cancel-edit" class="btn-cancel-outline">Cancelar</button>
+                                        <button id="btn-save-description" class="btn-save-teal">Guardar cambios</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-actions-right">
+                            <button type="button" class="btn-delete-red" data-bs-toggle="modal" data-bs-target="#deleteExperimentModal">
+                                <i class="fas fa-trash-can"></i> Eliminar
+                            </button>
+                            <a href="{% url 'dashboard' %}" class="btn-cancel-outline">
+                                ← Atrás
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-center justify-content-between mb-3 mt-4">
+                        <h3 class="section-title-centered-large m-0">Participantes</h3>
+                        <button type="button" id="open-participants-modal-btn" onclick="openParticipantsModal()" class="btn-icon-add" title="Agregar o crear participante">+</button>
+                    </div>
+                    <div class="participants-table">
+                        {% for participant in experiment.participants.all %}
+                        <div class="participant-row-detail">
+                            <div class="participant-name-bold" title="{{ participant.first_name }} {{ participant.last_name }}">
+                                <a href="{% url 'participant_experiments' participant.pk %}?from_experiment={{ experiment.pk }}" class="participant-name-link">
+                                    {{ participant.first_name }} {{ participant.last_name }}
+                                </a>
+                            </div>
+                            <div class="participant-action-col">
+                                <a href="{% url 'upload_consent_note' experiment.pk participant.pk %}" class="link-blue">Subir nota de consentimiento</a>
+                            </div>
+                            <div class="participant-action-col">
+                                <a href="{% url 'upload_participant_dicom' experiment.pk participant.pk %}" class="link-blue">Subir DICOM</a>
+                            </div>
+                            <div class="participant-action-col action-col-x">
+                                <button type="button" class="btn-remove-x" onclick="confirmRemoveParticipant('{{ participant.pk }}')" title="Quitar participante del experimento">X</button>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p style="text-align: center; color: #95a5a6; padding: 2rem 0;">No hay participantes registrados.</p>
+                        {% endfor %}
+                    </div>
+
+                    <div class="d-flex align-items-center justify-content-between mb-3 mt-4">
+                        <h3 class="section-title-centered-large m-0">Miembros del Equipo</h3>
+                        <button type="button" id="open-members-modal-btn" onclick="openMembersModal()" class="btn-icon-add" title="Agregar o crear miembro">+</button>
+                    </div>
+                    <div class="team-simple-list">
+                        {% for member in experiment.members.all %}
+                        <div class="team-member-row">
+                            <div class="team-member-info" title="{% if member.role %}{{ member.role }} - {% endif %}{% if member.first_name and member.last_name %}{{ member.first_name }} {{ member.last_name }}{% elif member.first_name %}{{ member.first_name }}{% elif member.last_name %}{{ member.last_name }}{% endif %}">
+                                {% if member.role %}
+                                <span class="member-role">{{ member.role }} - </span>
+                                {% endif %}
+                                <span class="member-name">
+                                    {% if member.first_name and member.last_name %}
+                                    {{ member.first_name }} {{ member.last_name }}
+                                    {% elif member.first_name %}
+                                    {{ member.first_name }}
+                                    {% elif member.last_name %}
+                                    {{ member.last_name }}
+                                    {% endif %}
+                                </span>
+                            </div>
+                            <div class="team-action-col action-col-x">
+                                <button type="button" class="btn-remove-x" onclick="confirmRemoveMember('{{ member.pk }}')" title="Quitar miembro del equipo">X</button>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p style="text-align: center; color: #95a5a6; padding: 2rem 0;">No hay miembros del equipo registrados.</p>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-
-    <h3 class="section-title-centered-large">Participantes</h3>
-    <div class="participants-table">
-        {% for participant in experiment.participants.all %}
-        <div class="participant-row-detail">
-            <span class="participant-name-bold">{{ participant.first_name }} {{ participant.last_name }}</span>
-            <div class="participant-links">
-                <a href="{% url 'upload_consent_note' experiment.pk participant.pk %}" class="link-blue">Subir nota de
-                    consentimiento</a>
-                <span class="separator"></span>
-                <a href="{% url 'upload_participant_dicom' experiment.pk participant.pk %}" class="link-blue">Subir
-                    DICOM</a>
-            </div>
-        </div>
-        {% empty %}
-        <p style="text-align: center; color: #95a5a6; padding: 2rem 0;">No hay participantes registrados.</p>
-        {% endfor %}
-    </div>
-
-    <h3 class="section-title-centered-large">Miembros del Equipo</h3>
-    <div class="team-simple-list">
-        {% for member in experiment.members.all %}
-        <div class="team-member-row">
-            <span class="member-role">
-                {% if member.role %}
-                {{ member.role }}
-                {% endif %}
-            </span>
-            <span class="member-name">
-                {% if member.first_name and member.last_name %}
-                {{ member.first_name }} {{ member.last_name }}
-                {% elif member.first_name %}
-                {{ member.first_name }}
-                {% elif member.last_name %}
-                {{ member.last_name }}
-                {% else %}
-                <!-- no mostrar nada -->
-                {% endif %}
-            </span>
-        </div>
-        {% empty %}
-        <p style="text-align: center; color: #95a5a6;">No hay miembros del equipo registrados.</p>
-        {% endfor %}
     </div>
 </div>
 
 <style>
+    .content-area {
+        background-color: #E6F0FF !important;
+        padding: 0 !important;
+    }
+
+    .participant-name-link {
+        color: #1E6091;
+        text-decoration: none;
+        font-weight: 600;
+        display: inline-block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: middle;
+        transition: color 0.2s;
+    }
+
+    .participant-name-link:hover {
+        color: #2B7A9B;
+        text-decoration: underline;
+    }
+
     .btn-edit-small {
         background: none;
         border: none;
@@ -109,64 +181,244 @@
         white-space: pre-wrap;
         min-height: 100px;
     }
+
+    .btn-icon-add {
+        background: #2B7A9B;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 20px;
+        line-height: 0;
+        padding: 0;
+        transition: background 0.2s;
+    }
+
+    .btn-icon-add:hover {
+        background: #236a8a;
+    }
+
+    .btn-remove-x {
+        background: none;
+        border: none;
+        color: #DC3545;
+        font-weight: 700;
+        font-size: 1rem;
+        cursor: pointer;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        transition: color 0.2s, transform 0.15s;
+    }
+
+    .btn-remove-x:hover {
+        color: #a71d2a;
+        transform: scale(1.2);
+    }
+
+    /* Modal Overlay Styles */
+    .modal-overlay-custom {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.2s;
+    }
+
+    .modal-overlay-custom.active {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .modal-card-custom {
+        background: white;
+        padding: 24px;
+        border-radius: 16px;
+        width: 100%;
+        max-width: 500px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        transform: scale(0.95);
+        transition: transform 0.2s;
+    }
+
+    .modal-overlay-custom.active .modal-card-custom {
+        transform: scale(1);
+    }
+
+    /* Custom Multi-Select Styles for Modal */
+    .custom-multiselect-detail {
+        position: relative;
+        width: 100%;
+        margin-bottom: 1rem;
+    }
+
+    .multiselect-container-detail {
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        background: white;
+        padding: 8px;
+        min-height: 42px;
+        cursor: text;
+    }
+
+    .multiselect-tags-detail {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 4px;
+    }
+
+    .multiselect-tag-detail {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #3b82f6;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+    }
+
+    .multiselect-tag-remove-detail {
+        cursor: pointer;
+        font-weight: bold;
+        opacity: 0.8;
+    }
+
+    .multiselect-search-detail {
+        border: none;
+        outline: none;
+        width: 100%;
+        padding: 4px;
+        font-size: 14px;
+    }
+
+    .multiselect-dropdown-detail {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        margin-top: 4px;
+        background: white;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 2050;
+        display: none;
+    }
+
+    .multiselect-dropdown-detail.active {
+        display: block;
+    }
+
+    .multiselect-option-detail {
+        padding: 10px 12px;
+        cursor: pointer;
+        font-size: 14px;
+        border-bottom: 1px solid #f3f4f6;
+    }
+
+    .multiselect-option-detail:hover {
+        background: #f3f4f6;
+    }
+
+    .multiselect-option-detail.selected {
+        background: #eff6ff;
+        color: #3b82f6;
+        font-weight: 500;
+    }
+
+    .multiselect-option-detail.hidden {
+        display: none;
+    }
+
+    .link-quick-create {
+        color: #3b82f6;
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+        margin-top: 8px;
+    }
+
+    .link-quick-create:hover {
+        text-decoration: underline;
+    }
 </style>
+
+<div style="display:none;">{% csrf_token %}</div>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const editBtn = document.getElementById('btn-edit-description');
-        const displayDiv = document.getElementById('description-display');
-        const editDiv = document.getElementById('description-edit');
+        const displayContainer = document.getElementById('description-display-container');
+        const editContainer = document.getElementById('description-edit-container');
+        const displayText = document.getElementById('description-display-text');
         const input = document.getElementById('description-input');
         const cancelBtn = document.getElementById('btn-cancel-edit');
         const saveBtn = document.getElementById('btn-save-description');
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '{{ csrf_token }}';
 
         // Toggle Modes
-        editBtn.addEventListener('click', () => {
-            displayDiv.style.display = 'none';
-            editDiv.style.display = 'block';
-            editBtn.style.display = 'none';
-            input.focus();
-        });
+        if (editBtn && editContainer) {
+            editBtn.addEventListener('click', () => {
+                displayContainer.style.display = 'none';
+                editContainer.style.display = 'block';
+                input.focus();
+            });
 
-        cancelBtn.addEventListener('click', () => {
-            displayDiv.style.display = 'block';
-            editDiv.style.display = 'none';
-            editBtn.style.display = 'inline-block';
-            // Reset value
-            input.value = displayDiv.innerText;
-        });
+            cancelBtn.addEventListener('click', () => {
+                displayContainer.style.display = 'flex';
+                editContainer.style.display = 'none';
+                input.value = displayText.innerText;
+            });
 
-        saveBtn.addEventListener('click', () => {
-            const newDescription = input.value;
-            const originalText = displayDiv.innerText;
+            saveBtn.addEventListener('click', () => {
+                const newDescription = input.value;
 
-            // Optimistic UI update could be done here, but let's wait for server
-            saveBtn.disabled = true;
-            saveBtn.textContent = 'Guardando...';
+                saveBtn.disabled = true;
+                saveBtn.textContent = 'Guardando...';
 
-            fetch("{% url 'update_experiment_description' experiment.pk %}", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
-                body: JSON.stringify({ description: newDescription })
-            })
+                fetch("{% url 'update_experiment_description' experiment.pk %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ description: newDescription })
+                })
                 .then(r => r.json())
                 .then(data => {
                     saveBtn.disabled = false;
                     saveBtn.textContent = 'Guardar cambios';
 
                     if (data.status === 'success') {
-                        displayDiv.innerText = data.description; // or innerHTML if we want HTML safe
-                        // Update textarea as well to sync
+                        displayText.innerText = data.description;
                         input.value = data.description;
 
-                        // Switch back
-                        displayDiv.style.display = 'block';
-                        editDiv.style.display = 'none';
-                        editBtn.style.display = 'inline-block';
+                        displayContainer.style.display = 'flex';
+                        editContainer.style.display = 'none';
                     } else {
                         alert('Error al guardar: ' + data.message);
                     }
@@ -177,7 +429,697 @@
                     saveBtn.textContent = 'Guardar cambios';
                     alert('Error de conexión');
                 });
+            });
+        }
+
+        // Name Edit Logic
+        const editNameBtn = document.getElementById('btn-edit-name');
+        const nameDisplayContainer = document.getElementById('name-display-container');
+        const nameEditContainer = document.getElementById('name-edit-container');
+        const nameInput = document.getElementById('name-input');
+        const nameDisplayText = document.getElementById('name-display-text');
+        const cancelNameBtn = document.getElementById('btn-cancel-name');
+        const saveNameBtn = document.getElementById('btn-save-name');
+
+        if (editNameBtn && nameEditContainer) {
+            editNameBtn.addEventListener('click', () => {
+                nameDisplayContainer.style.display = 'none';
+                nameEditContainer.style.display = 'block';
+                nameInput.focus();
+            });
+
+            cancelNameBtn.addEventListener('click', () => {
+                nameDisplayContainer.style.display = 'flex';
+                nameEditContainer.style.display = 'none';
+                nameInput.value = nameDisplayText.innerText;
+            });
+
+            saveNameBtn.addEventListener('click', () => {
+                const newName = nameInput.value.trim();
+                if (!newName) {
+                    alert('El nombre del experimento no puede estar vacío.');
+                    return;
+                }
+
+                saveNameBtn.disabled = true;
+                saveNameBtn.textContent = 'Guardando...';
+
+                fetch("{% url 'update_experiment_name' experiment.pk %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ name: newName })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    saveNameBtn.disabled = false;
+                    saveNameBtn.textContent = 'Guardar cambios';
+
+                    if (data.status === 'success') {
+                        nameDisplayText.innerText = data.name;
+                        nameInput.value = data.name;
+
+                        nameDisplayContainer.style.display = 'flex';
+                        nameEditContainer.style.display = 'none';
+                    } else {
+                        alert('Error al guardar: ' + data.message);
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    saveNameBtn.disabled = false;
+                    saveNameBtn.textContent = 'Guardar cambios';
+                    alert('Error de conexión');
+                });
+            });
+        }
+    });
+</script>
+<!-- Modal Confirmar Eliminación -->
+<div class="modal fade" id="deleteExperimentModal" tabindex="-1" aria-labelledby="deleteExperimentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 20px; padding: 2rem;">
+            <div class="modal-body text-center p-0">
+                <h3 style="font-weight: 700; color: #000;" class="mb-2" id="deleteExperimentModalLabel">¿Desea eliminar este experimento?</h3>
+                <p style="color: #666; font-size: 0.95rem;" class="mb-4">Esta acción no se puede deshacer.</p>
+                <form method="POST" action="{% url 'experiment_delete' experiment.pk %}">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-center gap-3">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" style="border-radius: 8px; padding: 0.5rem 1.5rem; font-weight: 500;">Cancelar</button>
+                        <button type="submit" class="btn" style="background-color: #DC3545; color: #fff; font-weight: 600; border-radius: 8px; padding: 0.5rem 1.5rem;">Eliminar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Administrar Participantes -->
+<div id="modal-manage-participants" class="modal-overlay-custom">
+    <div class="modal-card-custom">
+        <h3 class="modal-title mb-3" style="font-size: 1.2rem; font-weight: 700; color: #000;">Agregar Participantes</h3>
+        
+        <div class="custom-multiselect-detail" id="participants-multiselect-detail">
+            <div class="multiselect-container-detail">
+                <div class="multiselect-tags-detail" id="participants-tags-detail"></div>
+                <input type="text" class="multiselect-search-detail" placeholder="Buscar participante...">
+            </div>
+            <div class="multiselect-dropdown-detail" id="participants-dropdown-detail">
+                {% for p in available_participants %}
+                <div class="multiselect-option-detail" data-value="{{ p.id }}">{{ p.first_name }} {{ p.last_name }}</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div>
+            <span id="trigger-create-participant" onclick="openQuickParticipantModal()" class="link-quick-create">+ Crear nuevo participante</span>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-4">
+            <button type="button" id="cancel-manage-participants" onclick="closeParticipantsModal()" class="btn btn-outline-secondary" style="border-radius: 8px; padding: 0.4rem 1.2rem; font-size: 0.9rem;">Cancelar</button>
+            <button type="button" id="confirm-add-participants" class="btn" style="background-color: #1E6091; color: #fff; font-weight: 600; border-radius: 8px; padding: 0.4rem 1.4rem; font-size: 0.9rem;">Agregar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Administrar Miembros -->
+<div id="modal-manage-members" class="modal-overlay-custom">
+    <div class="modal-card-custom">
+        <h3 class="modal-title mb-3" style="font-size: 1.2rem; font-weight: 700; color: #000;">Agregar Miembros del Equipo</h3>
+        
+        <div class="custom-multiselect-detail" id="members-multiselect-detail">
+            <div class="multiselect-container-detail">
+                <div class="multiselect-tags-detail" id="members-tags-detail"></div>
+                <input type="text" class="multiselect-search-detail" placeholder="Buscar miembro...">
+            </div>
+            <div class="multiselect-dropdown-detail" id="members-dropdown-detail">
+                {% for m in available_members %}
+                <div class="multiselect-option-detail" data-value="{{ m.id }}">{{ m.first_name }} {{ m.last_name }}{% if m.role %} - {{ m.role }}{% endif %}</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div>
+            <span id="trigger-create-member" onclick="openQuickMemberModal()" class="link-quick-create">+ Crear nuevo miembro</span>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-4">
+            <button type="button" id="cancel-manage-members" onclick="closeMembersModal()" class="btn btn-outline-secondary" style="border-radius: 8px; padding: 0.4rem 1.2rem; font-size: 0.9rem;">Cancelar</button>
+            <button type="button" id="confirm-add-members" class="btn" style="background-color: #1E6091; color: #fff; font-weight: 600; border-radius: 8px; padding: 0.4rem 1.4rem; font-size: 0.9rem;">Agregar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Sub-Modal Create Participant -->
+<div id="modal-participant-quick" class="modal-overlay-custom">
+    <div class="modal-card-custom" style="max-width: 400px;">
+        <h3 class="modal-title mb-3" style="font-size: 1.1rem; font-weight: 700; color: #000;">Nuevo Participante</h3>
+        <input type="text" id="new-participant-name-detail" class="form-control mb-3" placeholder="Nombre y Apellido">
+        <div id="participant-quick-error" class="modal-error-alert" style="display: none;">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            <span class="error-msg-text"></span>
+        </div>
+        <div class="d-flex justify-content-end gap-2">
+            <button type="button" id="cancel-participant-quick" onclick="closeQuickParticipantModal()" class="btn btn-outline-secondary" style="border-radius: 8px; padding: 0.4rem 1rem; font-size: 0.85rem;">Cancelar</button>
+            <button type="button" id="save-participant-quick" class="btn" style="background-color: #2B7A9B; color: #fff; font-weight: 600; border-radius: 8px; padding: 0.4rem 1.2rem; font-size: 0.85rem;">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Sub-Modal Create Member -->
+<div id="modal-member-quick" class="modal-overlay-custom">
+    <div class="modal-card-custom" style="max-width: 400px;">
+        <h3 class="modal-title mb-3" style="font-size: 1.1rem; font-weight: 700; color: #000;">Nuevo Miembro</h3>
+        <input type="text" id="new-member-name-detail" class="form-control mb-2" placeholder="Nombre y Apellido">
+        <select id="new-member-role-detail" class="form-select mb-3">
+            <option value="">Seleccionar Rol</option>
+            <option value="Líder Científico/a">Líder Científico/a</option>
+            <option value="Co-investigador/a">Co-investigador/a</option>
+            <option value="Investigador/a Posdoctoral">Investigador/a Posdoctoral</option>
+            <option value="Coordinador/a de Investigación">Coordinador/a de Investigación</option>
+            <option value="Coordinador/a Clínico">Coordinador/a Clínico</option>
+            <option value="Neurólogo/a">Neurólogo/a</option>
+            <option value="Técnico/a en Neuroimagen">Técnico/a en Neuroimagen</option>
+            <option value="Ingeniero/a Biomédico/a">Ingeniero/a Biomédico/a</option>
+            <option value="Especialista en Procesamiento de Imágenes">Especialista en Procesamiento de Imágenes</option>
+            <option value="Asistente de Investigación">Asistente de Investigación</option>
+            <option value="Bioestadístico/a o Científico/a de Datos">Bioestadístico/a o Científico/a de Datos</option>
+        </select>
+        <div id="member-quick-error" class="modal-error-alert" style="display: none;">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            <span class="error-msg-text"></span>
+        </div>
+        <div class="d-flex justify-content-end gap-2">
+            <button type="button" id="cancel-member-quick" onclick="closeQuickMemberModal()" class="btn btn-outline-secondary" style="border-radius: 8px; padding: 0.4rem 1rem; font-size: 0.85rem;">Cancelar</button>
+            <button type="button" id="save-member-quick" class="btn" style="background-color: #2B7A9B; color: #fff; font-weight: 600; border-radius: 8px; padding: 0.4rem 1.2rem; font-size: 0.85rem;">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmar Quitar Participante -->
+<div id="removeParticipantModal" class="modal-overlay-custom">
+    <div class="modal-card-custom" style="max-width: 440px; text-align: center; padding: 2rem;">
+        <h3 class="mb-2" style="font-weight: 700; color: #000; font-size: 1.2rem;">¿Desea quitar este participante del experimento?</h3>
+        <p style="color: #666; font-size: 0.95rem;" class="mb-4">Esta acción eliminará los datos asociados a este participante dentro de este experimento y no se puede deshacer.</p>
+        <div class="d-flex justify-content-center gap-3">
+            <button type="button" onclick="closeRemoveParticipantModal()" class="btn btn-outline-secondary" style="border-radius: 8px; padding: 0.5rem 1.5rem; font-weight: 500;">Cancelar</button>
+            <button type="button" id="btn-confirm-remove-participant" class="btn" style="background-color: #DC3545; color: #fff; font-weight: 600; border-radius: 8px; padding: 0.5rem 1.5rem;">Quitar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmar Quitar Miembro -->
+<div id="removeMemberModal" class="modal-overlay-custom">
+    <div class="modal-card-custom" style="max-width: 440px; text-align: center; padding: 2rem;">
+        <h3 class="mb-2" style="font-weight: 700; color: #000; font-size: 1.2rem;">¿Desea quitar este miembro del equipo del experimento?</h3>
+        <p style="color: #666; font-size: 0.95rem;" class="mb-4">Esta acción quitará al miembro de este experimento.</p>
+        <div class="d-flex justify-content-center gap-3">
+            <button type="button" onclick="closeRemoveMemberModal()" class="btn btn-outline-secondary" style="border-radius: 8px; padding: 0.5rem 1.5rem; font-weight: 500;">Cancelar</button>
+            <button type="button" id="btn-confirm-remove-member" class="btn" style="background-color: #DC3545; color: #fff; font-weight: 600; border-radius: 8px; padding: 0.5rem 1.5rem;">Quitar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    class DetailMultiSelect {
+        constructor(containerId) {
+            this.container = document.getElementById(containerId);
+            if (!this.container) return;
+            this.searchInput = this.container.querySelector('.multiselect-search-detail');
+            this.dropdown = this.container.querySelector('.multiselect-dropdown-detail');
+            this.tagsContainer = this.container.querySelector('.multiselect-tags-detail');
+            this.multiselectContainer = this.container.querySelector('.multiselect-container-detail');
+            this.selectedValues = new Set();
+
+            this.init();
+        }
+
+        init() {
+            this.bindOptionEvents();
+
+            this.searchInput.addEventListener('input', () => this.filterOptions());
+            this.searchInput.addEventListener('focus', () => this.openDropdown());
+            this.multiselectContainer.addEventListener('click', () => this.searchInput.focus());
+
+            document.addEventListener('click', (e) => {
+                if (!this.container.contains(e.target)) {
+                    this.closeDropdown();
+                }
+            });
+        }
+
+        bindOptionEvents() {
+            const options = this.dropdown.querySelectorAll('.multiselect-option-detail');
+            options.forEach(option => {
+                option.onclick = (e) => {
+                    e.stopPropagation();
+                    this.toggleOption(option.dataset.value, option.textContent);
+                };
+            });
+        }
+
+        addOption(value, text, selectIt = true) {
+            let existingOption = this.dropdown.querySelector(`.multiselect-option-detail[data-value="${value}"]`);
+            if (!existingOption) {
+                const div = document.createElement('div');
+                div.className = 'multiselect-option-detail';
+                div.textContent = text;
+                div.dataset.value = value;
+                div.onclick = (e) => {
+                    e.stopPropagation();
+                    this.toggleOption(value, text);
+                };
+                this.dropdown.appendChild(div);
+            }
+            if (selectIt) {
+                this.addValue(value, text);
+                this.updateDropdownState();
+            }
+        }
+
+        toggleOption(value, text) {
+            if (this.selectedValues.has(value)) {
+                this.removeValue(value);
+            } else {
+                this.addValue(value, text);
+            }
+            this.updateDropdownState();
+        }
+
+        addValue(value, text) {
+            if (this.selectedValues.has(value)) return;
+            this.selectedValues.add(value);
+
+            const tag = document.createElement('div');
+            tag.className = 'multiselect-tag-detail';
+            tag.dataset.value = value;
+            tag.innerHTML = `
+                <span>${text}</span>
+                <span class="multiselect-tag-remove-detail">×</span>
+            `;
+
+            tag.querySelector('.multiselect-tag-remove-detail').addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.removeValue(value);
+                this.updateDropdownState();
+            });
+
+            this.tagsContainer.appendChild(tag);
+        }
+
+        removeValue(value) {
+            this.selectedValues.delete(value);
+            const tag = this.tagsContainer.querySelector(`[data-value="${value}"]`);
+            if (tag) {
+                tag.remove();
+            }
+        }
+
+        updateDropdownState() {
+            const options = this.dropdown.querySelectorAll('.multiselect-option-detail');
+            options.forEach(option => {
+                if (this.selectedValues.has(option.dataset.value)) {
+                    option.classList.add('selected');
+                } else {
+                    option.classList.remove('selected');
+                }
+            });
+        }
+
+        filterOptions() {
+            const searchTerm = this.searchInput.value.toLowerCase();
+            const options = this.dropdown.querySelectorAll('.multiselect-option-detail');
+
+            options.forEach(option => {
+                const text = option.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    option.classList.remove('hidden');
+                } else {
+                    option.classList.add('hidden');
+                }
+            });
+        }
+
+        openDropdown() {
+            this.dropdown.classList.add('active');
+        }
+
+        closeDropdown() {
+            this.dropdown.classList.remove('active');
+            this.searchInput.value = '';
+            this.filterOptions();
+        }
+
+        reset() {
+            this.selectedValues.clear();
+            this.tagsContainer.innerHTML = '';
+            this.updateDropdownState();
+            this.closeDropdown();
+        }
+    }
+
+    let targetParticipantId = null;
+    let targetMemberId = null;
+
+    window.confirmRemoveParticipant = function(id) {
+        targetParticipantId = id;
+        const modal = document.getElementById('removeParticipantModal');
+        if (modal) modal.classList.add('active');
+    };
+    window.closeRemoveParticipantModal = function() {
+        targetParticipantId = null;
+        const modal = document.getElementById('removeParticipantModal');
+        if (modal) modal.classList.remove('active');
+    };
+
+    window.confirmRemoveMember = function(id) {
+        targetMemberId = id;
+        const modal = document.getElementById('removeMemberModal');
+        if (modal) modal.classList.add('active');
+    };
+    window.closeRemoveMemberModal = function() {
+        targetMemberId = null;
+        const modal = document.getElementById('removeMemberModal');
+        if (modal) modal.classList.remove('active');
+    };
+
+    window.openParticipantsModal = function() {
+        if (window.partWidget) window.partWidget.reset();
+        const modal = document.getElementById('modal-manage-participants');
+        if (modal) modal.classList.add('active');
+    };
+    window.closeParticipantsModal = function() {
+        const modal = document.getElementById('modal-manage-participants');
+        if (modal) modal.classList.remove('active');
+    };
+    window.openMembersModal = function() {
+        if (window.memWidget) window.memWidget.reset();
+        const modal = document.getElementById('modal-manage-members');
+        if (modal) modal.classList.add('active');
+    };
+    window.closeMembersModal = function() {
+        const modal = document.getElementById('modal-manage-members');
+        if (modal) modal.classList.remove('active');
+    };
+    window.openQuickParticipantModal = function() {
+        const input = document.getElementById('new-participant-name-detail');
+        if (input) input.value = '';
+        const modal = document.getElementById('modal-participant-quick');
+        if (modal) modal.classList.add('active');
+    };
+    window.closeQuickParticipantModal = function() {
+        const modal = document.getElementById('modal-participant-quick');
+        if (modal) modal.classList.remove('active');
+    };
+    window.openQuickMemberModal = function() {
+        const nameInput = document.getElementById('new-member-name-detail');
+        if (nameInput) nameInput.value = '';
+        const roleInput = document.getElementById('new-member-role-detail');
+        if (roleInput) roleInput.value = '';
+        const modal = document.getElementById('modal-member-quick');
+        if (modal) modal.classList.add('active');
+    };
+    window.closeQuickMemberModal = function() {
+        const modal = document.getElementById('modal-member-quick');
+        if (modal) modal.classList.remove('active');
+    };
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const csrfTokenEl = document.querySelector('[name=csrfmiddlewaretoken]');
+        const csrfToken = csrfTokenEl ? csrfTokenEl.value : '';
+
+        window.partWidget = new DetailMultiSelect('participants-multiselect-detail');
+        window.memWidget = new DetailMultiSelect('members-multiselect-detail');
+
+        // Confirm Remove Participant Execution
+        document.getElementById('btn-confirm-remove-participant')?.addEventListener('click', () => {
+            if (!targetParticipantId) return;
+
+            const btn = document.getElementById('btn-confirm-remove-participant');
+            btn.disabled = true;
+            btn.textContent = 'Quitando...';
+
+            fetch(`/experiment/{{ experiment.pk }}/remove_participant/${targetParticipantId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.textContent = 'Quitar';
+                if (data.status === 'success') {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                btn.disabled = false;
+                btn.textContent = 'Quitar';
+                alert('Error de conexión');
+            });
+        });
+
+        // Confirm Remove Member Execution
+        document.getElementById('btn-confirm-remove-member')?.addEventListener('click', () => {
+            if (!targetMemberId) return;
+
+            const btn = document.getElementById('btn-confirm-remove-member');
+            btn.disabled = true;
+            btn.textContent = 'Quitando...';
+
+            fetch(`/experiment/{{ experiment.pk }}/remove_member/${targetMemberId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.textContent = 'Quitar';
+                if (data.status === 'success') {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                btn.disabled = false;
+                btn.textContent = 'Quitar';
+                alert('Error de conexión');
+            });
+        });
+
+        function toggleCustomModal(id, show) {
+            const modal = document.getElementById(id);
+            if (modal) {
+                if (show) modal.classList.add('active');
+                else modal.classList.remove('active');
+            }
+        }
+
+        // Open Main Modals
+        document.getElementById('open-participants-modal-btn')?.addEventListener('click', () => {
+            partWidget.reset();
+            toggleCustomModal('modal-manage-participants', true);
+        });
+
+        document.getElementById('cancel-manage-participants')?.addEventListener('click', () => {
+            toggleCustomModal('modal-manage-participants', false);
+        });
+
+        document.getElementById('open-members-modal-btn')?.addEventListener('click', () => {
+            memWidget.reset();
+            toggleCustomModal('modal-manage-members', true);
+        });
+
+        document.getElementById('cancel-manage-members')?.addEventListener('click', () => {
+            toggleCustomModal('modal-manage-members', false);
+        });
+
+        function showModalError(containerId, message) {
+            const el = document.getElementById(containerId);
+            if (el) {
+                const msgText = el.querySelector('.error-msg-text');
+                if (msgText) msgText.textContent = message;
+                el.style.display = 'flex';
+            }
+        }
+
+        function hideModalError(containerId) {
+            const el = document.getElementById(containerId);
+            if (el) {
+                const msgText = el.querySelector('.error-msg-text');
+                if (msgText) msgText.textContent = '';
+                el.style.display = 'none';
+            }
+        }
+
+        // Trigger Sub-Modals
+        document.getElementById('trigger-create-participant')?.addEventListener('click', () => {
+            document.getElementById('new-participant-name-detail').value = '';
+            hideModalError('participant-quick-error');
+            toggleCustomModal('modal-participant-quick', true);
+        });
+
+        document.getElementById('cancel-participant-quick')?.addEventListener('click', () => {
+            hideModalError('participant-quick-error');
+            toggleCustomModal('modal-participant-quick', false);
+        });
+
+        document.getElementById('trigger-create-member')?.addEventListener('click', () => {
+            document.getElementById('new-member-name-detail').value = '';
+            document.getElementById('new-member-role-detail').value = '';
+            hideModalError('member-quick-error');
+            toggleCustomModal('modal-member-quick', true);
+        });
+
+        document.getElementById('cancel-member-quick')?.addEventListener('click', () => {
+            hideModalError('member-quick-error');
+            toggleCustomModal('modal-member-quick', false);
+        });
+
+        // Quick Create Participant via AJAX
+        document.getElementById('save-participant-quick')?.addEventListener('click', () => {
+            const nameInput = document.getElementById('new-participant-name-detail');
+            const name = nameInput ? nameInput.value.trim() : '';
+            hideModalError('participant-quick-error');
+
+            if (!name) {
+                showModalError('participant-quick-error', 'Por favor ingresa un nombre.');
+                return;
+            }
+
+            fetch("{% url 'create_participant_ajax' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ full_name: name })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    if (window.partWidget) window.partWidget.addOption(data.id.toString(), data.value, true);
+                    hideModalError('participant-quick-error');
+                    toggleCustomModal('modal-participant-quick', false);
+                } else {
+                    showModalError('participant-quick-error', data.message);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showModalError('participant-quick-error', 'Error de conexión');
+            });
+        });
+
+        // Quick Create Member via AJAX
+        document.getElementById('save-member-quick')?.addEventListener('click', () => {
+            const nameInput = document.getElementById('new-member-name-detail');
+            const roleInput = document.getElementById('new-member-role-detail');
+            const name = nameInput ? nameInput.value.trim() : '';
+            const role = roleInput ? roleInput.value : '';
+            hideModalError('member-quick-error');
+
+            if (!name || !role) {
+                showModalError('member-quick-error', 'Por favor completa todos los campos.');
+                return;
+            }
+
+            fetch("{% url 'create_member_ajax' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ full_name: name, role: role })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    if (window.memWidget) window.memWidget.addOption(data.id.toString(), data.value, true);
+                    hideModalError('member-quick-error');
+                    toggleCustomModal('modal-member-quick', false);
+                } else {
+                    showModalError('member-quick-error', data.message);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showModalError('member-quick-error', 'Error de conexión');
+            });
+        });
+
+        // Confirm Add Participants
+        document.getElementById('confirm-add-participants')?.addEventListener('click', () => {
+            const selectedIds = window.partWidget ? Array.from(window.partWidget.selectedValues) : [];
+            if (selectedIds.length === 0) {
+                alert('Por favor selecciona al menos un participante.');
+                return;
+            }
+
+            fetch("{% url 'add_participants_to_experiment' experiment.pk %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ participant_ids: selectedIds })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Error de conexión');
+            });
+        });
+
+        // Confirm Add Members
+        document.getElementById('confirm-add-members')?.addEventListener('click', () => {
+            const selectedIds = window.memWidget ? Array.from(window.memWidget.selectedValues) : [];
+            if (selectedIds.length === 0) {
+                alert('Por favor selecciona al menos un miembro.');
+                return;
+            }
+
+            fetch("{% url 'add_members_to_experiment' experiment.pk %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ member_ids: selectedIds })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Error de conexión');
+            });
         });
     });
 </script>
+
 {% endblock %}

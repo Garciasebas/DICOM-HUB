@@ -262,72 +262,151 @@
     }
 </style>
 
-<div class="content-card">
-    <div class="dashboard-header-top">
-        <div class="dashboard-brand">DICOM HUB</div>
-    </div>
-    <div class="form-header-custom">
-        <h2 class="form-title-left">Nuevo Experimento</h2>
-        <div class="form-actions-right">
-            <button type="submit" form="experiment-form" class="btn-save-teal">Guardar</button>
-            <a href="{% url 'dashboard' %}" class="btn-cancel-outline">Cancelar</a>
+<div class="container-fluid p-0" style="background-color: #E6F0FF; min-height: 100vh;">
+    <!-- Header Title -->
+    <div class="row mb-4 pt-4">
+        <div class="col-12 text-center">
+            <h1 style="color: #5B7CFA; font-weight: 800; font-size: 2.5rem; letter-spacing: 2px;">DICOM HUB</h1>
         </div>
     </div>
 
-    <form id="experiment-form" method="post">
-        {% csrf_token %}
+    <!-- Breadcrumb -->
+    <div class="row justify-content-center px-4 mb-3">
+        <div class="col-12 col-xl-10">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb breadcrumb-custom">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="breadcrumb-link">Listado de Experimentos</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Nuevo Experimento</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
 
-        <div class="form-grid-two-column">
-            <div class="form-group-small">
-                {{ form.name }}
-            </div>
-            <div class="form-group-large">
-                {{ form.description }}
-                <div class="char-count">0/300</div>
+    <!-- Main Card -->
+    <div class="row justify-content-center px-4">
+        <div class="col-12 col-xl-10">
+            <div class="card border-0 shadow-sm" style="border-radius: 20px; padding: 2rem;">
+                <div class="card-body p-0">
+                    <div class="form-header-custom">
+                        <h2 class="form-title-left">Nuevo Experimento</h2>
+                        <div class="form-actions-right">
+                            <button type="submit" form="experiment-form" class="btn-save-teal">Guardar</button>
+                            <a href="{% url 'dashboard' %}" class="btn-cancel-outline">Cancelar</a>
+                        </div>
+                    </div>
+
+                    {% if form.errors %}
+                    <div id="global-error-banner" class="alert alert-danger mb-4" style="border-radius: 12px; background-color: #FEE2E2; border: 1px solid #FCA5A5; color: #991B1B; padding: 1rem 1.25rem;">
+                        <div class="d-flex align-items-center mb-2" style="font-weight: 700;">
+                            <i class="fas fa-exclamation-circle me-2" style="font-size: 1.2rem;"></i>
+                            Por favor corrija los siguientes errores:
+                        </div>
+                        <ul class="mb-0 ps-3">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% else %}
+                    <div id="global-error-banner" class="alert alert-danger mb-4" style="display: none; border-radius: 12px; background-color: #FEE2E2; border: 1px solid #FCA5A5; color: #991B1B; padding: 1rem 1.25rem;">
+                        <div class="d-flex align-items-center" style="font-weight: 700;">
+                            <i class="fas fa-exclamation-circle me-2" style="font-size: 1.2rem;"></i>
+                            Por favor complete todos los campos obligatorios.
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <form id="experiment-form" method="post" novalidate>
+                        {% csrf_token %}
+
+                        <!-- Block 1: Experiment Information (Full Width 100%) -->
+                        <div class="mb-3">
+                            <label for="id_name" class="form-label" style="font-weight: 700; font-size: 0.95rem; color: #000; margin-bottom: 0.4rem; display: block;">Nombre del Experimento</label>
+                            {{ form.name }}
+                            <div id="error-name" class="invalid-feedback" style="display: {% if form.name.errors %}block{% else %}none{% endif %}; color: #DC3545; font-size: 0.85rem; margin-top: 4px;">
+                                {% if form.name.errors %}{{ form.name.errors.0 }}{% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="id_description" class="form-label" style="font-weight: 700; font-size: 0.95rem; color: #000; margin-bottom: 0.4rem; display: block;">Descripción</label>
+                            {{ form.description }}
+                            <div id="error-description" class="invalid-feedback" style="display: {% if form.description.errors %}block{% else %}none{% endif %}; color: #DC3545; font-size: 0.85rem; margin-top: 4px;">
+                                {% if form.description.errors %}{{ form.description.errors.0 }}{% endif %}
+                            </div>
+                            <div class="text-end text-muted mt-1" style="font-size: 0.8rem; font-weight: 400; color: #6c757d;">
+                                <span class="char-count">0/300</span>
+                            </div>
+                        </div>
+
+                        <!-- Subtle Section Divider -->
+                        <div style="border-top: 1px solid #EEEEEE; margin: 1.5rem 0;"></div>
+
+                        <!-- Block 2: People Involved (50% / 50% Grid on Desktop, 100% on Mobile) -->
+                        <div class="row g-4">
+                            <div class="col-12 col-md-6">
+                                <div class="section-header-row mb-2">
+                                    <h3 style="font-size: 1.1rem; font-weight: 600; color: #000; margin-bottom: 0;">Participantes</h3>
+                                    <button type="button" id="add-participant-btn" class="btn-icon-add"
+                                        title="Crear nuevo participante">+</button>
+                                </div>
+                                <div class="custom-multiselect" id="participants-multiselect">
+                                    <div class="multiselect-container">
+                                        <div class="multiselect-tags" id="participants-tags"></div>
+                                        <input type="text" class="multiselect-search" placeholder="Buscar participantes...">
+                                    </div>
+                                    <div class="multiselect-dropdown" id="participants-dropdown"></div>
+                                    {{ form.participants }}
+                                </div>
+                                <div id="error-participants" class="invalid-feedback" style="display: {% if form.participants.errors %}block{% else %}none{% endif %}; color: #DC3545; font-size: 0.85rem; margin-top: 4px;">
+                                    {% if form.participants.errors %}{{ form.participants.errors.0 }}{% endif %}
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <div class="section-header-row mb-2">
+                                    <h3 style="font-size: 1.1rem; font-weight: 600; color: #000; margin-bottom: 0;">Miembros del Equipo</h3>
+                                    <button type="button" id="add-member-btn" class="btn-icon-add"
+                                        title="Crear nuevo miembro">+</button>
+                                </div>
+                                <div class="custom-multiselect" id="members-multiselect">
+                                    <div class="multiselect-container">
+                                        <div class="multiselect-tags" id="members-tags"></div>
+                                        <input type="text" class="multiselect-search" placeholder="Buscar miembros...">
+                                    </div>
+                                    <div class="multiselect-dropdown" id="members-dropdown"></div>
+                                    {{ form.members }}
+                                </div>
+                                <div id="error-members" class="invalid-feedback" style="display: {% if form.members.errors %}block{% else %}none{% endif %}; color: #DC3545; font-size: 0.85rem; margin-top: 4px;">
+                                    {% if form.members.errors %}{{ form.members.errors.0 }}{% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
-
-        <div class="form-grid-two-column">
-            <div class="dynamic-section">
-                <div class="section-header-row">
-                    <h3 class="section-title-left" style="margin-bottom: 0;">Participantes</h3>
-                    <button type="button" id="add-participant-btn" class="btn-icon-add"
-                        title="Crear nuevo participante">+</button>
-                </div>
-                <div class="custom-multiselect" id="participants-multiselect">
-                    <div class="multiselect-container">
-                        <div class="multiselect-tags" id="participants-tags"></div>
-                        <input type="text" class="multiselect-search" placeholder="Buscar participantes...">
-                    </div>
-                    <div class="multiselect-dropdown" id="participants-dropdown"></div>
-                    {{ form.participants }}
-                </div>
-            </div>
-
-            <div class="dynamic-section">
-                <div class="section-header-row">
-                    <h3 class="section-title-left" style="margin-bottom: 0;">Miembros del Equipo</h3>
-                    <button type="button" id="add-member-btn" class="btn-icon-add"
-                        title="Crear nuevo miembro">+</button>
-                </div>
-                <div class="custom-multiselect" id="members-multiselect">
-                    <div class="multiselect-container">
-                        <div class="multiselect-tags" id="members-tags"></div>
-                        <input type="text" class="multiselect-search" placeholder="Buscar miembros...">
-                    </div>
-                    <div class="multiselect-dropdown" id="members-dropdown"></div>
-                    {{ form.members }}
-                </div>
-            </div>
-        </div>
-    </form>
+    </div>
 </div>
+
+<style>
+    .content-area {
+        background-color: #E6F0FF !important;
+        padding: 0 !important;
+    }
+</style>
 
 <!-- Modal Create Participant -->
 <div id="modal-participant" class="modal-overlay">
     <div class="modal-card">
         <h3 class="modal-title">Nuevo Participante</h3>
         <input type="text" id="new-participant-name" class="modal-input" placeholder="Nombre y Apellido">
+        <div id="participant-form-error" class="modal-error-alert" style="display: none;">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            <span class="error-msg-text"></span>
+        </div>
         <div class="modal-actions">
             <button type="button" id="cancel-participant" class="btn-cancel-outline">Cancelar</button>
             <button type="button" id="save-participant" class="btn-save-teal">Confirmar</button>
@@ -354,6 +433,10 @@
             <option value="Asistente de Investigación">Asistente de Investigación</option>
             <option value="Bioestadístico/a o Científico/a de Datos">Bioestadístico/a o Científico/a de Datos</option>
         </select>
+        <div id="member-form-error" class="modal-error-alert" style="display: none;">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            <span class="error-msg-text"></span>
+        </div>
         <div class="modal-actions">
             <button type="button" id="cancel-member" class="btn-cancel-outline">Cancelar</button>
             <button type="button" id="save-member" class="btn-save-teal">Confirmar</button>
@@ -498,16 +581,35 @@
 
     // Initialize on DOM ready
     document.addEventListener('DOMContentLoaded', function () {
-        // Character counter
-        const descriptionField = document.querySelector('textarea[name="description"]');
+        // Character counter & Auto-resize for Description
+        function autoResizeDescription() {
+            const textarea = document.getElementById('id_description') || document.querySelector('textarea[name="description"]');
+            if (!textarea) return;
+
+            const charCount = textarea.value.length;
+            const counter = document.querySelector('.char-count');
+            if (counter) {
+                counter.textContent = charCount + '/300';
+            }
+
+            textarea.style.height = 'auto';
+
+            const minHeight = 44;
+            const maxHeight = 180;
+
+            const newHeight = Math.max(
+                minHeight,
+                Math.min(textarea.scrollHeight, maxHeight)
+            );
+
+            textarea.style.height = newHeight + 'px';
+            textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden';
+        }
+
+        const descriptionField = document.getElementById('id_description') || document.querySelector('textarea[name="description"]');
         if (descriptionField) {
-            descriptionField.addEventListener('input', function () {
-                const charCount = this.value.length;
-                const counter = document.querySelector('.char-count');
-                if (counter) {
-                    counter.textContent = charCount + '/300';
-                }
-            });
+            descriptionField.addEventListener('input', autoResizeDescription);
+            autoResizeDescription();
         }
 
         // Initialize custom multi-selects
@@ -524,6 +626,73 @@
             membersWidget = new CustomMultiSelect('members-multiselect', membersSelect);
         }
 
+        // Form Submit Validation
+        const experimentForm = document.getElementById('experiment-form');
+        if (experimentForm) {
+            experimentForm.addEventListener('submit', function (e) {
+                let hasError = false;
+
+                const errorName = document.getElementById('error-name');
+                const errorDescription = document.getElementById('error-description');
+                const errorParticipants = document.getElementById('error-participants');
+                const errorMembers = document.getElementById('error-members');
+                const globalErrorBanner = document.getElementById('global-error-banner');
+
+                if (errorName) errorName.style.display = 'none';
+                if (errorDescription) errorDescription.style.display = 'none';
+                if (errorParticipants) errorParticipants.style.display = 'none';
+                if (errorMembers) errorMembers.style.display = 'none';
+                if (globalErrorBanner) globalErrorBanner.style.display = 'none';
+
+                const nameInput = document.querySelector('input[name="name"]');
+                const nameVal = nameInput ? nameInput.value.trim() : '';
+
+                const descInput = document.querySelector('textarea[name="description"]');
+                const descVal = descInput ? descInput.value.trim() : '';
+
+                if (!nameVal) {
+                    hasError = true;
+                    if (errorName) {
+                        errorName.textContent = 'El nombre del experimento es obligatorio.';
+                        errorName.style.display = 'block';
+                    }
+                }
+
+                if (!descVal) {
+                    hasError = true;
+                    if (errorDescription) {
+                        errorDescription.textContent = 'La descripción del experimento es obligatoria.';
+                        errorDescription.style.display = 'block';
+                    }
+                }
+
+                const selectedPartCount = participantsWidget ? participantsWidget.selectedValues.size : (participantsSelect ? participantsSelect.selectedOptions.length : 0);
+                if (selectedPartCount === 0) {
+                    hasError = true;
+                    if (errorParticipants) {
+                        errorParticipants.textContent = 'Debe seleccionar al menos un participante.';
+                        errorParticipants.style.display = 'block';
+                    }
+                }
+
+                const selectedMemCount = membersWidget ? membersWidget.selectedValues.size : (membersSelect ? membersSelect.selectedOptions.length : 0);
+                if (selectedMemCount === 0) {
+                    hasError = true;
+                    if (errorMembers) {
+                        errorMembers.textContent = 'Debe seleccionar al menos un miembro del equipo.';
+                        errorMembers.style.display = 'block';
+                    }
+                }
+
+                if (hasError) {
+                    e.preventDefault();
+                    if (globalErrorBanner) {
+                        globalErrorBanner.style.display = 'block';
+                    }
+                }
+            });
+        }
+
         // Quick Creation Logic
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
@@ -533,27 +702,51 @@
             else modal.classList.remove('active');
         }
 
+        function showModalError(containerId, message) {
+            const el = document.getElementById(containerId);
+            if (el) {
+                const msgText = el.querySelector('.error-msg-text');
+                if (msgText) msgText.textContent = message;
+                el.style.display = 'flex';
+            }
+        }
+
+        function hideModalError(containerId) {
+            const el = document.getElementById(containerId);
+            if (el) {
+                const msgText = el.querySelector('.error-msg-text');
+                if (msgText) msgText.textContent = '';
+                el.style.display = 'none';
+            }
+        }
+
         // Participant Logic
         const addPartBtn = document.getElementById('add-participant-btn');
         if (addPartBtn) {
             addPartBtn.addEventListener('click', () => {
                 document.getElementById('new-participant-name').value = '';
+                hideModalError('participant-form-error');
                 toggleModal('modal-participant', true);
             });
         }
 
         const cancelPartBtn = document.getElementById('cancel-participant');
         if (cancelPartBtn) {
-            cancelPartBtn.addEventListener('click', () => toggleModal('modal-participant', false));
+            cancelPartBtn.addEventListener('click', () => {
+                hideModalError('participant-form-error');
+                toggleModal('modal-participant', false);
+            });
         }
 
         const savePartBtn = document.getElementById('save-participant');
         if (savePartBtn) {
             savePartBtn.addEventListener('click', () => {
                 const nameInput = document.getElementById('new-participant-name');
-                const name = nameInput.value;
+                const name = nameInput ? nameInput.value.trim() : '';
+                hideModalError('participant-form-error');
+
                 if (!name) {
-                    alert('Por favor ingresa un nombre.');
+                    showModalError('participant-form-error', 'Por favor ingresa un nombre.');
                     return;
                 }
 
@@ -568,24 +761,23 @@
                     .then(r => r.json())
                     .then(data => {
                         if (data.status === 'success') {
-                            // Create new option
                             const option = new Option(data.value, data.id, true, true);
                             participantsSelect.add(option);
 
-                            // Add to custom widget
                             if (participantsWidget) {
-                                participantsWidget.buildDropdown(); // Rebuild to include new option
+                                participantsWidget.buildDropdown();
                                 participantsWidget.toggleOption(data.id.toString(), data.value);
                             }
 
+                            hideModalError('participant-form-error');
                             toggleModal('modal-participant', false);
                         } else {
-                            alert('Error: ' + data.message);
+                            showModalError('participant-form-error', data.message);
                         }
                     })
                     .catch(err => {
                         console.error(err);
-                        alert('Error de conexión');
+                        showModalError('participant-form-error', 'Error de conexión.');
                     });
             });
         }
@@ -596,23 +788,28 @@
             addMemBtn.addEventListener('click', () => {
                 document.getElementById('new-member-name').value = '';
                 document.getElementById('new-member-role').value = '';
+                hideModalError('member-form-error');
                 toggleModal('modal-member', true);
             });
         }
 
         const cancelMemBtn = document.getElementById('cancel-member');
         if (cancelMemBtn) {
-            cancelMemBtn.addEventListener('click', () => toggleModal('modal-member', false));
+            cancelMemBtn.addEventListener('click', () => {
+                hideModalError('member-form-error');
+                toggleModal('modal-member', false);
+            });
         }
 
         const saveMemBtn = document.getElementById('save-member');
         if (saveMemBtn) {
             saveMemBtn.addEventListener('click', () => {
-                const name = document.getElementById('new-member-name').value;
+                const name = document.getElementById('new-member-name').value.trim();
                 const role = document.getElementById('new-member-role').value;
+                hideModalError('member-form-error');
 
                 if (!name || !role) {
-                    alert('Por favor completa todos los campos.');
+                    showModalError('member-form-error', 'Por favor completa todos los campos.');
                     return;
                 }
 
@@ -627,24 +824,23 @@
                     .then(r => r.json())
                     .then(data => {
                         if (data.status === 'success') {
-                            // Create new option
                             const option = new Option(data.value, data.id, true, true);
                             membersSelect.add(option);
 
-                            // Add to custom widget
                             if (membersWidget) {
                                 membersWidget.buildDropdown();
                                 membersWidget.toggleOption(data.id.toString(), data.value);
                             }
 
+                            hideModalError('member-form-error');
                             toggleModal('modal-member', false);
                         } else {
-                            alert('Error: ' + data.message);
+                            showModalError('member-form-error', data.message);
                         }
                     })
                     .catch(err => {
                         console.error(err);
-                        alert('Error de conexión');
+                        showModalError('member-form-error', 'Error de conexión.');
                     });
             });
         }

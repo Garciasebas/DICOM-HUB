@@ -1,9 +1,10 @@
 import pydicom
 from django.shortcuts import render, get_object_or_404, redirect
+from django.db import models, transaction
 from django.db.models import Q
 from django.urls import reverse_lazy
-from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
-from django.http import FileResponse, Http404, HttpResponse, JsonResponse
+from django.views.generic import DetailView, CreateView, DeleteView
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse, HttpResponseRedirect
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -16,11 +17,14 @@ from dicom2nifti import convert_directory
 import json
 import zipfile
 from .models import DicomFile, DicomTag, Experiment, Participant, ConsentFile, Member
-from .forms import DicomFileForm, DicomTagForm, DicomUploadForm, ExperimentForm
+from .forms import DicomFileForm, ExperimentForm
+from .utils import get_user_experiments, get_user_participants, get_user_members, get_user_dicom_files
+import logging
 import uuid
 import numpy as np
 import nibabel as nib
-import uuid
+
+logger = logging.getLogger(__name__)
 from .bids_utils import (
     normalize_subject_id, detect_modality, convert_dicom_to_nifti,
     create_dataset_description, create_participants_tsv
@@ -102,44 +106,15 @@ def process_dicom_file(dicom_file_upload, participant=None, experiment=None):
 
 
 
-@login_required
-def upload_dicom(request):
-    if request.method == 'POST':
-        form = DicomUploadForm(request.POST, request.FILES)
-        if form.is_valid():
-            dicom_file = request.FILES['dicom_file']
-            
-            # Usar la función helper para procesar el DICOM
-            dicom_instance, dicom_data = process_dicom_file(dicom_file)
-            
-            # Pasar los datos DICOM anonimizados a la plantilla de éxito
-            return render(request, 'success.html', {
-                'dicom_data': dicom_data, 
-                'patient_name': dicom_instance.patient_name
-            })
 
-    else:
-        form = DicomUploadForm()
-
-    return render(request, 'upload.html', {'form': form})
-
-class DicomFileListView(LoginRequiredMixin, ListView):
-    model = DicomFile
-    template_name = 'dicomfile_list.html'  # Nombre de tu plantilla
-    context_object_name = 'dicom_files'
-    paginate_by = 10  # Número de resultados por página
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        query = self.request.GET.get('q')
-        if query:
-            queryset = queryset.filter(Q(patient_name__icontains=query))
-        return queryset
 
 class DicomFileDetailView(LoginRequiredMixin, DetailView):
     model = DicomFile
     template_name = 'dicom_app/dicomfile_detail.html'  # Plantilla corregida
     context_object_name = 'dicom_file'  # Nombre del contexto en la plantilla
+    
+    def get_queryset(self):
+        return get_user_dicom_files(self.request.user)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -180,23 +155,34 @@ class DicomFileDetailView(LoginRequiredMixin, DetailView):
         context['remaining_tags_json'] = json.dumps(cleaned_tags[initial_count:])
         return context
 
-class DicomFileCreateView(LoginRequiredMixin, CreateView):
-    model = DicomFile
-    form_class = DicomFileForm
-    template_name = 'dicomfile_form.html'
-    success_url = reverse_lazy('dicomfile_list')
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        form = DicomFileForm(request.POST, instance=self.object)
+        if form.is_valid():
+            form.save()
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.META.get('HTTP_ACCEPT', ''):
+                return JsonResponse({
+                    'status': 'success',
+                    'patient_name': self.object.patient_name
+                })
+            return redirect('dicomfile_detail', pk=self.object.pk)
+        else:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.META.get('HTTP_ACCEPT', ''):
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'El nombre del paciente no puede estar vacío.'
+                }, status=400)
+            context = self.get_context_data(object=self.object, form=form)
+            return self.render_to_response(context)
 
-class DicomFileUpdateView(LoginRequiredMixin, UpdateView):
-    model = DicomFile
-    form_class = DicomFileForm
-    template_name = 'dicomfile_form.html'
-    
-    def get_success_url(self):
-        return reverse_lazy('dicomfile_detail', kwargs={'pk': self.object.pk})
+
 
 class DicomFileDeleteView(LoginRequiredMixin, DeleteView):
     model = DicomFile
     template_name = 'dicomfile_confirm_delete.html'
+    
+    def get_queryset(self):
+        return get_user_dicom_files(self.request.user)
     
     def get_success_url(self):
         # Redirect to the participant's experiments list after deletion
@@ -217,62 +203,7 @@ def convert_single_dicom_to_nifti(dicom_path, output_path):
     nii = nib.Nifti1Image(image, affine)
     nib.save(nii, output_path)
 
-@login_required
-def export_dicom_to_bids(request, pk):
-    dicom_instance = get_object_or_404(DicomFile, pk=pk)
-    dicom_path = dicom_instance.file.path
 
-    if not os.path.exists(dicom_path):
-        raise Http404("Archivo DICOM no encontrado")
-
-    temp_dir = tempfile.mkdtemp()
-    try:
-        # Generate BIDS structure
-        subject_id = normalize_subject_id(1) # Single file export gets sub-01
-        session_id = "ses-01"
-        
-        # Detect modality
-        ds = pydicom.dcmread(dicom_path)
-        modality_folder, suffix = detect_modality(ds)
-        
-        output_dir = Path(temp_dir) / subject_id / session_id / modality_folder
-        output_dir.mkdir(parents=True, exist_ok=True)
-        
-        output_basename = f"{subject_id}_{suffix}"
-        
-        # Convert
-        nifti_path, json_path = convert_dicom_to_nifti(dicom_path, output_dir, output_basename)
-        
-        if not nifti_path:
-             return HttpResponse("❌ La conversión falló: no se generó ningún archivo .nii.gz", status=500)
-
-        # Create dataset_description.json
-        create_dataset_description(Path(temp_dir))
-        
-        # Create participants.tsv (minimal)
-        create_participants_tsv(Path(temp_dir), [{
-            'participant_id': subject_id,
-            'age': 'n/a',
-            'sex': 'n/a',
-            'group': 'control'
-        }])
-
-        # Zip
-        zip_path = tempfile.NamedTemporaryFile(delete=False, suffix=".zip").name
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            for root, _, files in os.walk(temp_dir):
-                for file in files:
-                    full_path = os.path.join(root, file)
-                    arcname = os.path.relpath(full_path, temp_dir)
-                    zipf.write(full_path, arcname=arcname)
-
-        return FileResponse(open(zip_path, 'rb'), as_attachment=True, filename=f"{subject_id}_bids.zip")
-        
-    except Exception as e:
-        traceback.print_exc()
-        return HttpResponse(f"Error exportando a BIDS: {e}", status=500)
-    finally:
-        shutil.rmtree(temp_dir, ignore_errors=True)
 
 @login_required
 def export_experiment_to_bids(request, experiment_id):
@@ -280,7 +211,7 @@ def export_experiment_to_bids(request, experiment_id):
     Exporta todos los archivos DICOM de un experimento a formato BIDS.
     Genera una estructura BIDS completa con todos los participantes.
     """
-    experiment = get_object_or_404(Experiment, pk=experiment_id)
+    experiment = get_object_or_404(get_user_experiments(request.user), pk=experiment_id)
     
     # Crear directorio temporal para la estructura BIDS
     temp_dir = tempfile.mkdtemp()
@@ -322,7 +253,7 @@ def export_experiment_to_bids(request, experiment_id):
                     dicom_path = dicom_file.file.path
                     
                     if not os.path.exists(dicom_path):
-                        print(f"⚠️ Archivo DICOM no encontrado: {dicom_path}")
+                        logger.warning(f"Archivo DICOM no encontrado: {dicom_path}")
                         continue
                     
                     # Detectar modalidad
@@ -373,15 +304,15 @@ def export_experiment_to_bids(request, experiment_id):
                         output_basename = f"{subject_id}_{acq_entity}_{suffix}"
                     
                     # Convertir
-                    print(f"📦 Processing DICOM {dicom_file.id} for {subject_id}/{modality_folder}")
+                    logger.info(f"Processing DICOM {dicom_file.id} for {subject_id}/{modality_folder}")
                     nifti_path, json_path = convert_dicom_to_nifti(dicom_path, output_dir, output_basename)
                     
                     if not nifti_path:
-                        print(f"⚠️ Conversion failed for DICOM {dicom_file.id}, skipping...")
+                        logger.warning(f"Conversion failed for DICOM {dicom_file.id}, skipping...")
                         continue
                     
                 except Exception as e:
-                    print(f"⚠️ Error procesando archivo DICOM {dicom_file.id}: {str(e)}")
+                    logger.error(f"Error procesando archivo DICOM {dicom_file.id}: {str(e)}")
                     traceback.print_exc()
                     continue
         
@@ -423,8 +354,7 @@ def zip_bids_folder(bids_dir):
                 zipf.write(file_path, arcname=os.path.relpath(file_path, bids_dir))
     return zip_path
 
-def main_menu(request):
-    return render(request, 'main_menu.html')
+
 
 @login_required
 def experiment_success(request):
@@ -438,7 +368,7 @@ def dashboard(request):
     if request.user.groups.filter(name='Participante').exists():
         return redirect('participant_dashboard')
         
-    experiments = Experiment.objects.filter(status='Active')
+    experiments = get_user_experiments(request.user).filter(status='Active')
     
     # Search functionality
     query = request.GET.get('q')
@@ -449,11 +379,7 @@ def dashboard(request):
 
 @login_required
 def participant_dashboard(request):
-    # Only allow participants or admins
-    if not request.user.groups.filter(name='Participante').exists() and not request.user.is_staff:
-        return redirect('dashboard')
-        
-    participants = Participant.objects.all()
+    participants = get_user_participants(request.user)
     query = request.GET.get('q')
     if query:
         participants = participants.filter(
@@ -479,85 +405,136 @@ class ExperimentCreateView(LoginRequiredMixin, CreateView):
     template_name = 'dicom_app/experiment_form.html'
     success_url = reverse_lazy('experiment_success')
     
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+    
     def form_valid(self, form):
-        # Django automatically handles ManyToMany relationships when using ModelForm
-        # The participants and members will be saved automatically
+        form.instance.created_by = self.request.user
         response = super().form_valid(form)
         
         # Debug output
         experiment = self.object
-        print(f"Experiment created: {experiment.name}")
-        print(f"Participants count: {experiment.participants.count()}")
-        print(f"Members count: {experiment.members.count()}")
+        logger.info(f"Experiment created: {experiment.name} by {experiment.created_by}")
         
         return response
-
-
-
 
 class ExperimentDetailView(LoginRequiredMixin, DetailView):
     model = Experiment
     template_name = 'dicom_app/experiment_detail.html'
     context_object_name = 'experiment'
 
+    def get_queryset(self):
+        return get_user_experiments(self.request.user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        experiment = self.object
+        context['available_participants'] = get_user_participants(self.request.user).exclude(id__in=experiment.participants.values_list('id', flat=True))
+        context['available_members'] = get_user_members(self.request.user).exclude(id__in=experiment.members.values_list('id', flat=True))
+        return context
+
 class ExperimentDeleteView(LoginRequiredMixin, DeleteView):
     model = Experiment
     template_name = 'dicom_app/experiment_confirm_delete.html'
     success_url = reverse_lazy('dashboard')
 
-class ParticipantCreateView(LoginRequiredMixin, CreateView):
-    model = Participant
-    fields = ['subject_id', 'details', 'experiment']
-    template_name = 'dicom_app/participant_form.html'
-    
-    def get_success_url(self):
-        return reverse_lazy('experiment_detail', kwargs={'pk': self.object.experiment.pk})
+    def get_queryset(self):
+        return get_user_experiments(self.request.user)
+
+    def form_valid(self, form):
+        success_url = self.get_success_url()
+        experiment = self.get_object()
+
+        with transaction.atomic():
+            associated_participants = list(experiment.participants.all())
+            associated_members = list(experiment.members.all())
+
+            orphan_participants = [
+                p for p in associated_participants
+                if not p.experiments.exclude(pk=experiment.pk).exists()
+            ]
+            orphan_members = [
+                m for m in associated_members
+                if not m.experiments.exclude(pk=experiment.pk).exists()
+            ]
+
+            experiment.delete()
+
+            for p in orphan_participants:
+                p.delete()
+
+            for m in orphan_members:
+                m.delete()
+
+        return HttpResponseRedirect(success_url)
 
 class ParticipantDetailView(LoginRequiredMixin, DetailView):
     model = Participant
     template_name = 'dicom_app/participant_detail.html'
     context_object_name = 'participant'
 
-class ParticipantListView(LoginRequiredMixin, ListView):
-    model = Participant
-    template_name = 'dicom_app/participant_list.html'
-    context_object_name = 'participants'
+    def get_queryset(self):
+        return get_user_participants(self.request.user)
 
 # New views for file uploads
 @login_required
 def upload_consent_note(request, experiment_id, participant_id):
     """Vista para subir nota de consentimiento de un participante"""
-    experiment = get_object_or_404(Experiment, pk=experiment_id)
-    participant = get_object_or_404(Participant, pk=participant_id)
+    experiment = get_object_or_404(get_user_experiments(request.user), pk=experiment_id)
+    participant = get_object_or_404(get_user_participants(request.user), pk=participant_id)
     
+    error_message = None
     if request.method == 'POST':
         if 'consent_file' in request.FILES:
             file = request.FILES['consent_file']
             
-            # Create ConsentFile record
-            consent_file = ConsentFile.objects.create(
-                participant=participant,
-                experiment=experiment,
-                file=file,
-                original_filename=file.name,
-                file_size=file.size
-            )
-            
-            return render(request, 'dicom_app/upload_success_consent.html', {
-                'experiment': experiment,
-                'participant': participant
-            })
+            # Validación backend: Extensión + contenido real (magic bytes %PDF-)
+            is_valid_pdf = True
+            if not file.name.lower().endswith('.pdf'):
+                is_valid_pdf = False
+                error_message = 'Formato no permitido. Solo se permiten archivos con extensión .pdf.'
+            else:
+                try:
+                    file.seek(0)
+                    header = file.read(5)
+                    file.seek(0)
+                    if header != b'%PDF-':
+                        is_valid_pdf = False
+                        error_message = 'El archivo seleccionado no es un documento PDF válido.'
+                except Exception:
+                    is_valid_pdf = False
+                    error_message = 'Error al verificar el archivo. Asegúrese de seleccionar un PDF válido.'
+
+            if is_valid_pdf:
+                # Create ConsentFile record
+                consent_file = ConsentFile.objects.create(
+                    participant=participant,
+                    experiment=experiment,
+                    file=file,
+                    original_filename=file.name,
+                    file_size=file.size
+                )
+                
+                return render(request, 'dicom_app/upload_success_consent.html', {
+                    'experiment': experiment,
+                    'participant': participant
+                })
+        else:
+            error_message = 'Por favor seleccione un archivo PDF.'
     
     return render(request, 'dicom_app/upload_consent_note.html', {
         'participant': participant,
-        'experiment': experiment
+        'experiment': experiment,
+        'error_message': error_message
     })
 
 @login_required
 def view_consent_note(request, participant_id, experiment_id):
     """Vista para visualizar la nota de consentimiento de un participante en un experimento"""
-    participant = get_object_or_404(Participant, pk=participant_id)
-    experiment = get_object_or_404(Experiment, pk=experiment_id)
+    participant = get_object_or_404(get_user_participants(request.user), pk=participant_id)
+    experiment = get_object_or_404(get_user_experiments(request.user), pk=experiment_id)
     
     # Buscar el ConsentFile más reciente para este participante y experimento
     consent_file = ConsentFile.objects.filter(
@@ -618,8 +595,8 @@ def view_consent_note(request, participant_id, experiment_id):
 @login_required
 def upload_participant_dicom(request, experiment_id, participant_id):
     """Vista para subir archivos DICOM de un participante"""
-    experiment = get_object_or_404(Experiment, pk=experiment_id)
-    participant = get_object_or_404(Participant, pk=participant_id)
+    experiment = get_object_or_404(get_user_experiments(request.user), pk=experiment_id)
+    participant = get_object_or_404(get_user_participants(request.user), pk=participant_id)
     
     if request.method == 'POST':
         if 'dicom_file' in request.FILES:
@@ -643,30 +620,31 @@ def upload_participant_dicom(request, experiment_id, participant_id):
         'experiment': experiment
     })
 
-@login_required
-def upload_success(request, upload_type):
-    """Vista de éxito después de subir archivos"""
-    messages = {
-        'dicom': '¡Archivo DICOM subido exitosamente!',
-        'consent': '¡Nota de consentimiento subida exitosamente!'
-    }
-    message = messages.get(upload_type, '¡Archivo subido exitosamente!')
-    
-    return render(request, 'dicom_app/upload_success.html', {
-        'message': message
-    })
+
 
 @login_required
 def participant_experiments(request, participant_id):
     """Vista para mostrar todos los experimentos de un participante"""
-    participant = get_object_or_404(Participant, pk=participant_id)
+    participant = get_object_or_404(get_user_participants(request.user), pk=participant_id)
     
-    # Obtener todos los experimentos del participante usando la relación ManyToMany
-    experiments = participant.experiments.all().order_by('-created_at')
+    # Obtener el experimento de origen si proviene del detalle de un experimento
+    from_experiment_id = request.GET.get('from_experiment')
+    from_experiment = None
+    if from_experiment_id:
+        from_experiment = get_user_experiments(request.user).filter(pk=from_experiment_id).first()
+
+    # Obtener todos los experimentos del participante usando la relación ManyToMany permitidos para el usuario
+    experiments = get_user_experiments(request.user).filter(participants=participant).order_by('-created_at')
     
+    # Filtrar por búsqueda si se envió el parámetro q
+    query = request.GET.get('q')
+    if query:
+        experiments = experiments.filter(name__icontains=query)
+
     return render(request, 'dicom_app/participant_experiments.html', {
         'participant': participant,
-        'experiments': experiments
+        'experiments': experiments,
+        'from_experiment': from_experiment,
     })
 
 @login_required
@@ -674,11 +652,16 @@ def participant_experiment_dicoms(request, participant_id, experiment_id):
     """
     Muestra todos los archivos DICOM de un participante para un experimento específico
     """
-    participant = get_object_or_404(Participant, pk=participant_id)
-    experiment = get_object_or_404(Experiment, pk=experiment_id)
+    participant = get_object_or_404(get_user_participants(request.user), pk=participant_id)
+    experiment = get_object_or_404(get_user_experiments(request.user), pk=experiment_id)
     
+    from_experiment_id = request.GET.get('from_experiment')
+    from_experiment = None
+    if from_experiment_id:
+        from_experiment = get_user_experiments(request.user).filter(pk=from_experiment_id).first()
+
     # Obtener todos los DICOM files del participante para este experimento
-    dicom_files = DicomFile.objects.filter(
+    dicom_files = get_user_dicom_files(request.user).filter(
         participant=participant,
         experiment=experiment
     ).order_by('-upload_date')
@@ -686,7 +669,8 @@ def participant_experiment_dicoms(request, participant_id, experiment_id):
     return render(request, 'dicom_app/participant_experiment_dicoms.html', {
         'participant': participant,
         'experiment': experiment,
-        'dicom_files': dicom_files
+        'dicom_files': dicom_files,
+        'from_experiment': from_experiment,
     })
 
 @login_required
@@ -699,7 +683,7 @@ def dicom_image_view(request, dicom_id):
     from PIL import Image
     from django.conf import settings
     
-    dicom_file = get_object_or_404(DicomFile, pk=dicom_id)
+    dicom_file = get_object_or_404(get_user_dicom_files(request.user), pk=dicom_id)
     
     # 1. Resolución robusta de la ruta del archivo
     possible_paths = []
@@ -780,21 +764,37 @@ def dicom_image_view(request, dicom_id):
         return HttpResponse(f"Error procesando imagen DICOM: {str(e)}", status=500)
 
 @require_POST
+@login_required
 def create_participant_ajax(request):
     try:
         data = json.loads(request.body)
-        full_name = data.get('full_name', '').strip()
+        raw_name = data.get('full_name', '')
         
-        if not full_name:
+        # Normalizar espacios: quitar bordes y colapsar espacios internos
+        clean_full_name = " ".join(raw_name.split())
+        
+        if not clean_full_name:
             return JsonResponse({'status': 'error', 'message': 'El nombre es obligatorio.'}, status=400)
             
         # Split name
-        parts = full_name.split(' ', 1)
-        first_name = parts[0]
-        last_name = parts[1] if len(parts) > 1 else ''
+        parts = clean_full_name.split(' ', 1)
+        first_name = parts[0].title()
+        last_name = parts[1].title() if len(parts) > 1 else ''
         
+        # Validar existencia previa case-insensitive en el alcance del usuario
+        existing = get_user_participants(request.user).filter(
+            first_name__iexact=first_name,
+            last_name__iexact=last_name
+        ).first()
+        
+        if existing:
+            full_existing_name = f"{existing.first_name} {existing.last_name}".strip()
+            return JsonResponse({
+                'status': 'error',
+                'message': f"Ya existe un participante registrado con el nombre '{full_existing_name}'."
+            }, status=400)
+            
         # Generate subject_id
-        # We use a simple strategy: SUB- + random 6 chars
         subject_id = f"SUB-{uuid.uuid4().hex[:6].upper()}"
         
         participant = Participant.objects.create(
@@ -806,25 +806,42 @@ def create_participant_ajax(request):
         return JsonResponse({
             'status': 'success',
             'id': participant.id,
-            'value': f"{participant.first_name} {participant.last_name}"
+            'value': f"{participant.first_name} {participant.last_name}".strip()
         })
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 @require_POST
+@login_required
 def create_member_ajax(request):
     try:
         data = json.loads(request.body)
-        full_name = data.get('full_name', '').strip()
+        raw_name = data.get('full_name', '')
         role = data.get('role', '').strip()
         
-        if not full_name or not role:
+        # Normalizar espacios: quitar bordes y colapsar espacios internos
+        clean_full_name = " ".join(raw_name.split())
+        
+        if not clean_full_name or not role:
             return JsonResponse({'status': 'error', 'message': 'Nombre y rol son obligatorios.'}, status=400)
             
-        parts = full_name.split(' ', 1)
-        first_name = parts[0]
-        last_name = parts[1] if len(parts) > 1 else ''
+        parts = clean_full_name.split(' ', 1)
+        first_name = parts[0].title()
+        last_name = parts[1].title() if len(parts) > 1 else ''
         
+        # Validar existencia previa case-insensitive en el alcance del usuario
+        existing = get_user_members(request.user).filter(
+            first_name__iexact=first_name,
+            last_name__iexact=last_name
+        ).first()
+        
+        if existing:
+            full_existing_name = f"{existing.first_name} {existing.last_name}".strip()
+            return JsonResponse({
+                'status': 'error',
+                'message': f"Ya existe un miembro del equipo registrado con el nombre '{full_existing_name}'."
+            }, status=400)
+            
         member = Member.objects.create(
             first_name=first_name,
             last_name=last_name,
@@ -834,15 +851,16 @@ def create_member_ajax(request):
         return JsonResponse({
             'status': 'success',
             'id': member.id,
-            'value': f"{member.first_name} {member.last_name} - {member.role}"
+            'value': f"{member.first_name} {member.last_name}".strip() + f" - {member.role}"
         })
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 @require_POST
+@login_required
 def update_experiment_description(request, pk):
     try:
-        experiment = get_object_or_404(Experiment, pk=pk)
+        experiment = get_object_or_404(get_user_experiments(request.user), pk=pk)
         data = json.loads(request.body)
         description = data.get('description', '').strip()
         
@@ -853,6 +871,151 @@ def update_experiment_description(request, pk):
             'status': 'success',
             'description': experiment.description
         })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@require_POST
+@login_required
+def update_experiment_name(request, pk):
+    try:
+        experiment = get_object_or_404(get_user_experiments(request.user), pk=pk)
+        data = json.loads(request.body)
+        name = data.get('name', '').strip()
+        
+        if not name:
+            return JsonResponse({'status': 'error', 'message': 'El nombre del experimento no puede estar vacío.'}, status=400)
+            
+        experiment.name = name
+        experiment.save()
+        
+        return JsonResponse({
+            'status': 'success',
+            'name': experiment.name
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@require_POST
+@login_required
+def add_participants_to_experiment(request, pk):
+    try:
+        experiment = get_object_or_404(get_user_experiments(request.user), pk=pk)
+        data = json.loads(request.body)
+        participant_ids = data.get('participant_ids', [])
+
+        if not isinstance(participant_ids, list) or not participant_ids:
+            return JsonResponse({'status': 'error', 'message': 'Debe seleccionar al menos un participante.'}, status=400)
+
+        # Validar alcance de participantes
+        allowed_participant_ids = set(get_user_participants(request.user).values_list('id', flat=True))
+        if not all(pid in allowed_participant_ids for pid in participant_ids):
+            return JsonResponse({'status': 'error', 'message': 'Uno o más participantes seleccionados no están permitidos.'}, status=403)
+
+        experiment.participants.add(*participant_ids)
+
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Participantes agregados exitosamente.'
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@require_POST
+@login_required
+def add_members_to_experiment(request, pk):
+    try:
+        experiment = get_object_or_404(get_user_experiments(request.user), pk=pk)
+        data = json.loads(request.body)
+        member_ids = data.get('member_ids', [])
+
+        if not isinstance(member_ids, list) or not member_ids:
+            return JsonResponse({'status': 'error', 'message': 'Debe seleccionar al menos un miembro.'}, status=400)
+
+        # Validar alcance de miembros
+        allowed_member_ids = set(get_user_members(request.user).values_list('id', flat=True))
+        if not all(mid in allowed_member_ids for mid in member_ids):
+            return JsonResponse({'status': 'error', 'message': 'Uno o más miembros seleccionados no están permitidos.'}, status=403)
+
+        experiment.members.add(*member_ids)
+
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Miembros agregados exitosamente.'
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@require_POST
+@login_required
+def remove_participant_from_experiment(request, pk, participant_id):
+    try:
+        experiment = get_object_or_404(get_user_experiments(request.user), pk=pk)
+        participant = get_object_or_404(Participant, pk=participant_id)
+
+        if participant not in experiment.participants.all():
+            return JsonResponse({'status': 'error', 'message': 'El participante no está asociado a este experimento.'}, status=400)
+
+        files_to_delete = []
+
+        with transaction.atomic():
+            # 1. Consent Files
+            consent_qs = ConsentFile.objects.filter(participant=participant, experiment=experiment)
+            for cf in consent_qs:
+                if cf.file and hasattr(cf.file, 'path'):
+                    try:
+                        files_to_delete.append(cf.file.path)
+                    except Exception:
+                        pass
+            consent_qs.delete()
+
+            # 2. DICOM Files
+            dicom_qs = DicomFile.objects.filter(participant=participant, experiment=experiment)
+            for df in dicom_qs:
+                if df.file and hasattr(df.file, 'path'):
+                    try:
+                        files_to_delete.append(df.file.path)
+                    except Exception:
+                        pass
+            dicom_qs.delete()
+
+            # 3. Remove M2M relation
+            experiment.participants.remove(participant)
+
+            # 4. Remove participant if no remaining experiments
+            if participant.experiments.count() == 0:
+                participant.delete()
+
+            # 5. Delete physical files on_commit
+            def cleanup_files():
+                for filepath in files_to_delete:
+                    if filepath and os.path.exists(filepath):
+                        try:
+                            os.remove(filepath)
+                        except Exception as err:
+                            logger.error(f"Error borrando archivo físico {filepath}: {err}")
+
+            transaction.on_commit(cleanup_files)
+
+        return JsonResponse({'status': 'success', 'message': 'Participante quitado del experimento exitosamente.'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@require_POST
+@login_required
+def remove_member_from_experiment(request, pk, member_id):
+    try:
+        experiment = get_object_or_404(get_user_experiments(request.user), pk=pk)
+        member = get_object_or_404(Member, pk=member_id)
+
+        if member not in experiment.members.all():
+            return JsonResponse({'status': 'error', 'message': 'El miembro no está asociado a este experimento.'}, status=400)
+
+        with transaction.atomic():
+            experiment.members.remove(member)
+            if member.experiments.count() == 0:
+                member.delete()
+
+        return JsonResponse({'status': 'success', 'message': 'Miembro quitado del experimento exitosamente.'})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 

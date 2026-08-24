@@ -9,44 +9,93 @@
         </div>
     </div>
 
+    <!-- Breadcrumb -->
+    <div class="row justify-content-center px-4 mb-3">
+        <div class="col-12 col-xl-10">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb breadcrumb-custom">
+                    {% if dicom_file.participant and dicom_file.experiment %}
+                    <li class="breadcrumb-item"><a href="{% url 'participant_list' %}" class="breadcrumb-link">Participantes</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'participant_experiments' dicom_file.participant.pk %}" class="breadcrumb-link">Experimentos del Participante</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'participant_experiment_dicoms' dicom_file.participant.pk dicom_file.experiment.pk %}" class="breadcrumb-link">Archivos DICOM</a></li>
+                    {% elif dicom_file.participant %}
+                    <li class="breadcrumb-item"><a href="{% url 'participant_list' %}" class="breadcrumb-link">Participantes</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'participant_experiments' dicom_file.participant.pk %}" class="breadcrumb-link">Experimentos del Participante</a></li>
+                    {% else %}
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="breadcrumb-link">Listado de Experimentos</a></li>
+                    {% endif %}
+                    <li class="breadcrumb-item active" aria-current="page">Detalle de Archivo DICOM</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
     <div class="row justify-content-center px-4">
         <div class="col-12 col-xl-10">
             <div class="card border-0 shadow-sm" style="border-radius: 20px; padding: 2rem;">
                 <div class="card-body p-0">
 
-                    <h2 class="mb-3" style="font-weight: 700; font-size: 1.8rem; color: #000;">
-                        Detalle del Archivo DICOM
-                    </h2>
-
-                    <div class="mb-3" style="font-size: 0.9rem; line-height: 1.6;">
-                        <p class="mb-1" style="color: #000;">
-                            <strong>Nombre del Paciente:</strong>
-                            <span style="color: #555;">{{ dicom_file.patient_name }}</span>
-                        </p>
-                        <p class="mb-0" style="color: #000;">
-                            <strong>Fecha de Subida:</strong>
-                            <span style="color: #555;">{{ dicom_file.upload_date|date:"Y-m-d H:i" }}</span>
-                        </p>
+                    <!-- Card Title and Action Buttons -->
+                    <div class="d-flex justify-content-between align-items-start mb-4">
+                        <div>
+                            <h2 class="card-title mb-1">
+                                Detalle del Archivo DICOM
+                            </h2>
+                        </div>
+                        <div class="form-actions-right">
+                            <button type="button" class="btn-delete-red" data-bs-toggle="modal" data-bs-target="#deleteDicomModal">
+                                <i class="fas fa-trash-can"></i> Eliminar
+                            </button>
+                            {% if dicom_file.participant and dicom_file.experiment %}
+                            <a href="{% url 'participant_experiment_dicoms' dicom_file.participant.pk dicom_file.experiment.pk %}" class="btn-cancel-outline">
+                                ← Atrás
+                            </a>
+                            {% elif dicom_file.participant %}
+                            <a href="{% url 'participant_experiments' dicom_file.participant.pk %}" class="btn-cancel-outline">
+                                ← Atrás
+                            </a>
+                            {% else %}
+                            <a href="{% url 'dashboard' %}" class="btn-cancel-outline">
+                                ← Atrás
+                            </a>
+                            {% endif %}
+                        </div>
                     </div>
 
-                    <div class="d-flex flex-wrap gap-2 mb-4 align-items-center justify-content-center">
-                        <a href="{% url 'dicomfile_edit' dicom_file.pk %}" class="btn"
-                            style="background-color: #FFC107; color: #000; font-weight: 600; border: none; border-radius: 5px; padding: 0.4rem 1.2rem; font-size: 0.85rem;">Editar</a>
-                        <a href="{% url 'dicomfile_delete' dicom_file.pk %}" class="btn"
-                            style="background-color: #DC3545; color: #fff; font-weight: 600; border: none; border-radius: 5px; padding: 0.4rem 1.2rem; font-size: 0.85rem;">Eliminar</a>
-
-                        {% if participant_id %}
-                        <a href="{% url 'participant_experiments' participant_id %}" class="btn"
-                            style="background-color: #fff; color: #666; font-weight: 500; border: 1px solid #ddd; border-radius: 5px; padding: 0.4rem 1.2rem; font-size: 0.85rem;">←
-                            Volver al listado</a>
-                        {% else %}
-                        <a href="{% url 'dashboard' %}" class="btn"
-                            style="background-color: #fff; color: #666; font-weight: 500; border: 1px solid #ddd; border-radius: 5px; padding: 0.4rem 1.2rem; font-size: 0.85rem;">←
-                            Volver al listado</a>
+                    <div class="mb-3">
+                        {% if dicom_file.experiment %}
+                        <p class="detail-meta-text mb-2">
+                            <strong>Experimento:</strong> <span>{{ dicom_file.experiment.name }}</span>
+                        </p>
                         {% endif %}
 
-                        <a href="{% url 'dicom_image_view' dicom_file.pk %}" class="btn"
-                            style="background-color: #1E6091; color: #fff; font-weight: 600; border: none; border-radius: 5px; padding: 0.4rem 1.5rem; font-size: 0.85rem;">Imagen</a>
+                        <div class="mb-2">
+                            <div id="patient-name-display-container" style="display: flex; align-items: center; gap: 0.5rem;">
+                                <p class="detail-meta-text m-0">
+                                    <strong>Nombre del Paciente:</strong> <span id="patient-name-display-text">{{ dicom_file.patient_name }}</span>
+                                </p>
+                                <button id="btn-edit-patient-name" class="btn-edit-small" title="Editar nombre del paciente">
+                                    <i class="fas fa-pen"></i> Editar
+                                </button>
+                            </div>
+                            <div id="patient-name-edit-container" style="display: none; margin-top: 0.5rem;">
+                                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                    <input type="text" id="patient-name-input" class="form-control" style="max-width: 350px;" value="{{ dicom_file.patient_name }}">
+                                    <button id="btn-save-patient-name" class="btn-save-teal">Guardar cambios</button>
+                                    <button id="btn-cancel-patient-name" class="btn-cancel-outline">Cancelar</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <p class="detail-meta-text mb-2">
+                            <strong>Fecha de Subida:</strong> <span>{{ dicom_file.upload_date|date:"Y-m-d H:i" }}</span>
+                        </p>
+
+                        <div class="mt-2 mb-4">
+                            <a href="{% url 'dicom_image_view' dicom_file.pk %}" target="_blank" class="action-link">
+                                Ver imagen DICOM
+                            </a>
+                        </div>
                     </div>
 
                     <h4 class="mb-3" style="font-weight: 700; font-size: 1rem; color: #000;">Tags Asociados:</h4>
@@ -133,6 +182,72 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        // Inline Patient Name Editing
+        const btnEdit = document.getElementById('btn-edit-patient-name');
+        const btnSave = document.getElementById('btn-save-patient-name');
+        const btnCancel = document.getElementById('btn-cancel-patient-name');
+        const displayContainer = document.getElementById('patient-name-display-container');
+        const editContainer = document.getElementById('patient-name-edit-container');
+        const displayText = document.getElementById('patient-name-display-text');
+        const inputField = document.getElementById('patient-name-input');
+
+        if (btnEdit && btnSave && btnCancel && displayContainer && editContainer && inputField && displayText) {
+            btnEdit.addEventListener('click', function () {
+                displayContainer.style.display = 'none';
+                editContainer.style.display = 'block';
+                inputField.focus();
+            });
+
+            btnCancel.addEventListener('click', function () {
+                inputField.value = displayText.textContent.trim();
+                editContainer.style.display = 'none';
+                displayContainer.style.display = 'flex';
+            });
+
+            btnSave.addEventListener('click', function () {
+                const newName = inputField.value.trim();
+                if (!newName) {
+                    alert('El nombre del paciente no puede estar vacío.');
+                    return;
+                }
+
+                btnSave.disabled = true;
+                btnSave.textContent = 'Guardando...';
+
+                const formData = new FormData();
+                formData.append('patient_name', newName);
+
+                fetch("{% url 'dicomfile_detail' dicom_file.pk %}", {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    btnSave.disabled = false;
+                    btnSave.textContent = 'Guardar cambios';
+
+                    if (data.status === 'success') {
+                        displayText.textContent = data.patient_name;
+                        inputField.value = data.patient_name;
+                        editContainer.style.display = 'none';
+                        displayContainer.style.display = 'flex';
+                    } else {
+                        alert(data.message || 'El nombre del paciente no puede estar vacío.');
+                    }
+                })
+                .catch(error => {
+                    btnSave.disabled = false;
+                    btnSave.textContent = 'Guardar cambios';
+                    console.error('Error:', error);
+                    alert('Ocurrió un error al procesar la solicitud.');
+                });
+            });
+        }
+
         const remainingTagsScript = document.getElementById('remaining-tags-data');
         if (!remainingTagsScript) return;
 
@@ -179,4 +294,23 @@
         }
     });
 </script>
+<!-- Modal Confirmar Eliminación DICOM -->
+<div class="modal fade" id="deleteDicomModal" tabindex="-1" aria-labelledby="deleteDicomModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 20px; padding: 2rem;">
+            <div class="modal-body text-center p-0">
+                <h3 style="font-weight: 700; color: #000;" class="mb-2" id="deleteDicomModalLabel">¿Desea eliminar este archivo DICOM?</h3>
+                <p style="color: #666; font-size: 0.95rem;" class="mb-4">Esta acción no se puede deshacer.</p>
+                <form method="POST" action="{% url 'dicomfile_delete' dicom_file.pk %}">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-center gap-3">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" style="border-radius: 8px; padding: 0.5rem 1.5rem; font-weight: 500;">Cancelar</button>
+                        <button type="submit" class="btn" style="background-color: #DC3545; color: #fff; font-weight: 600; border-radius: 8px; padding: 0.5rem 1.5rem;">Eliminar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}

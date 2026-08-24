@@ -4,7 +4,10 @@ import shutil
 import tempfile
 import pydicom
 import dicom2nifti
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 def normalize_subject_id(index):
     """
@@ -44,7 +47,7 @@ def detect_modality(ds):
                 modality_folder = "anat"
                 suffix = "FLAIR"
     except Exception as e:
-        print(f"Error detecting modality: {e}")
+        logger.error(f"Error detecting modality: {e}")
 
     return modality_folder, suffix
 
@@ -109,11 +112,11 @@ def convert_dicom_to_nifti(dicom_path, output_dir, output_basename):
         ds.save_as(temp_dicom_path)
         
         # 3. Try Convert using dicom2nifti first
-        print(f"Converting {dicom_path} to NIfTI...")
+        logger.info(f"Converting {dicom_path} to NIfTI...")
         try:
             dicom2nifti.convert_directory(temp_dicom_dir, temp_convert_dir, compression=True, reorient=True)
         except Exception as e:
-            print(f"⚠️ dicom2nifti failed: {e}, trying fallback method...")
+            logger.warning(f"dicom2nifti failed: {e}, trying fallback method...")
         
         # 4. Find generated files
         nifti_files = list(Path(temp_convert_dir).glob("*.nii.gz"))
@@ -125,7 +128,7 @@ def convert_dicom_to_nifti(dicom_path, output_dir, output_basename):
             dest_nifti = output_dir / f"{output_basename}.nii.gz"
             shutil.move(str(source_nifti), str(dest_nifti))
             generated_nifti = dest_nifti
-            print(f"✅ Generated NIfTI: {dest_nifti}")
+            logger.info(f"Generated NIfTI: {dest_nifti}")
             
             # Handle JSON sidecar
             if json_files:
@@ -143,10 +146,10 @@ def convert_dicom_to_nifti(dicom_path, output_dir, output_basename):
                     }, f, indent=4)
                 generated_json = dest_json
             
-            print(f"✅ Generated JSON: {generated_json}")
+            logger.info(f"Generated JSON: {generated_json}")
         else:
             # Fallback: Use nibabel for single-slice DICOMs
-            print(f"⚠️ dicom2nifti produced no output, using fallback conversion...")
+            logger.warning(f"dicom2nifti produced no output, using fallback conversion...")
             dest_nifti = output_dir / f"{output_basename}.nii.gz"
             
             # Use the existing convert_single_dicom_to_nifti function
@@ -160,7 +163,7 @@ def convert_dicom_to_nifti(dicom_path, output_dir, output_basename):
                     nii = nib.Nifti1Image(image, affine)
                     nib.save(nii, str(dest_nifti))
                     generated_nifti = dest_nifti
-                    print(f"✅ Fallback conversion successful: {dest_nifti}")
+                    logger.info(f"Fallback conversion successful: {dest_nifti}")
                     
                     # Create JSON
                     dest_json = output_dir / f"{output_basename}.json"
@@ -171,12 +174,12 @@ def convert_dicom_to_nifti(dicom_path, output_dir, output_basename):
                         }, f, indent=4)
                     generated_json = dest_json
                 else:
-                    print(f"❌ Image has invalid dimensions: {image.ndim}")
+                    logger.error(f"Image has invalid dimensions: {image.ndim}")
             else:
-                print(f"❌ DICOM has no PixelData")
+                logger.error(f"DICOM has no PixelData")
             
     except Exception as e:
-        print(f"❌ Conversion error for {dicom_path}: {e}")
+        logger.error(f"Conversion error for {dicom_path}: {e}")
         import traceback
         traceback.print_exc()
     finally:

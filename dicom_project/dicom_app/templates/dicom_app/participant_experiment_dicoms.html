@@ -10,6 +10,26 @@
         </div>
     </div>
 
+    <!-- Breadcrumb -->
+    <div class="row justify-content-center px-4 mb-3">
+        <div class="col-12 col-xl-10">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb breadcrumb-custom">
+                    {% if from_experiment %}
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="breadcrumb-link">Experimentos</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'experiment_detail' from_experiment.pk %}" class="breadcrumb-link">{{ from_experiment.name }}</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'participant_experiments' participant.pk %}?from_experiment={{ from_experiment.pk }}" class="breadcrumb-link">Experimentos del Participante</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Archivos DICOM</li>
+                    {% else %}
+                    <li class="breadcrumb-item"><a href="{% url 'participant_list' %}" class="breadcrumb-link">Participantes</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'participant_experiments' participant.pk %}" class="breadcrumb-link">Experimentos del Participante</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Archivos DICOM</li>
+                    {% endif %}
+                </ol>
+            </nav>
+        </div>
+    </div>
+
     <!-- Main Card -->
     <div class="row justify-content-center px-4">
         <div class="col-12 col-xl-10">
@@ -28,9 +48,9 @@
                                 Experimento: {{ experiment.name }}
                             </p>
                         </div>
-                        <a href="{% url 'participant_experiments' participant.pk %}" class="btn btn-outline-secondary"
+                        <a href="{% url 'participant_experiments' participant.pk %}{% if from_experiment %}?from_experiment={{ from_experiment.pk }}{% endif %}" class="btn btn-outline-secondary"
                             style="border-radius: 8px; padding: 0.5rem 1.5rem; font-size: 0.9rem;">
-                            ← Volver al listado
+                            ← Atrás
                         </a>
                     </div>
 

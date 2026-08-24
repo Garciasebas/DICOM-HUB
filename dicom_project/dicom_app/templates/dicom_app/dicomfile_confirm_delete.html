@@ -9,24 +9,16 @@
         flex-direction: column;
         align-items: center;
         justify-content: flex-start;
-        background: #E8EEF7;
-        padding-top: 3rem;
+        background: #E6F0FF;
+        padding-top: 0;
         margin: -3rem;
-    }
-
-    .delete-page-header {
-        font-size: 1.8rem;
-        font-weight: bold;
-        color: #5B7FDB;
-        margin-bottom: 3rem;
-        text-align: center;
     }
 
     .delete-confirmation-box {
         background: white;
         border-radius: 20px;
         padding: 2.5rem;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
         max-width: 500px;
         width: 90%;
         text-align: center;
@@ -103,10 +95,35 @@
         color: #495057;
         border-color: #adb5bd;
     }
+
+    .content-area {
+        background-color: #E6F0FF !important;
+        padding: 0 !important;
+    }
 </style>
 
 <div class="delete-page-wrapper">
-    <div class="delete-page-header">DICOM HUB</div>
+    <!-- Header Title -->
+    <div class="row mb-4 pt-4 w-100">
+        <div class="col-12 text-center">
+            <h1 style="color: #5B7CFA; font-weight: 800; font-size: 2.5rem; letter-spacing: 2px;">DICOM HUB</h1>
+        </div>
+    </div>
+
+    <!-- Breadcrumb -->
+    <div class="row justify-content-center px-4 mb-3 w-100">
+        <div class="col-12 col-xl-10">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb breadcrumb-custom justify-content-center">
+                    <li class="breadcrumb-item"><a href="{% url 'participant_list' %}" class="breadcrumb-link">Participantes</a></li>
+                    {% if object.participant %}
+                    <li class="breadcrumb-item"><a href="{% url 'participant_experiments' object.participant.pk %}" class="breadcrumb-link">Experimentos del Participante</a></li>
+                    {% endif %}
+                    <li class="breadcrumb-item active" aria-current="page">Eliminar Archivo DICOM</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
 
     <div class="delete-confirmation-box">
         <h2 class="delete-confirmation-title">Confirmar Eliminación</h2>

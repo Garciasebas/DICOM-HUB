@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: ${DB_NAME:-dicom_db}
       POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-garcia2012}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
       - "5432:5432"
 
@@ -24,10 +24,10 @@ services:
       - DB_PORT=5432
       - DB_NAME=${DB_NAME:-dicom_db}
       - DB_USER=${DB_USER:-postgres}
-      - DB_PASSWORD=${DB_PASSWORD:-garcia2012}
-      - SECRET_KEY=${SECRET_KEY:-django-insecure-liogq*39$=fp=x8x7wc55es*b!7vq8(a#t@@op+y11#2y6(pg)}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - SECRET_KEY=${SECRET_KEY}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1}
-      - DEBUG=${DEBUG:-True}
+      - DEBUG=${DEBUG:-False}
     depends_on:
       - db
 

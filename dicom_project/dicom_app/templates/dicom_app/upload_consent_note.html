@@ -1,32 +1,70 @@
 {% extends 'base.html' %}
 
 {% block content %}
-
-<div class="content-card-centered">
-    <div style="text-align: center; margin-bottom: 1rem;">
-    <div class="dashboard-brand">DICOM HUB</div>
-</div>
-    <div class="upload-header-redesigned">
-        <h2 class="upload-title-elegant">Subir Nota de Consentimiento</h2>
-        <a href="{% url 'experiment_detail' experiment.pk %}" class="btn-back-elegant">
-            <i class="fas fa-arrow-left"></i> Volver
-        </a>
+<div class="container-fluid p-0" style="background-color: #E6F0FF; min-height: 100vh;">
+    <!-- Header Title -->
+    <div class="row mb-4 pt-4">
+        <div class="col-12 text-center">
+            <h1 style="color: #5B7CFA; font-weight: 800; font-size: 2.5rem; letter-spacing: 2px;">DICOM HUB</h1>
+        </div>
     </div>
 
-    <form method="post" enctype="multipart/form-data" class="upload-form-centered">
-        {% csrf_token %}
-        <div class="file-input-container">
-            <label for="consent_file">Note file</label>
-            <input type="file" name="consent_file" id="consent_file" accept=".pdf,.doc,.docx" required
-                class="file-input-custom" onchange="displayFileName(this)">
-            <div class="file-name-display" id="file-name-display" style="display: none;"></div>
+    <!-- Breadcrumb -->
+    <div class="row justify-content-center px-4 mb-3">
+        <div class="col-12 col-xl-10">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb breadcrumb-custom">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="breadcrumb-link">Listado de Experimentos</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'experiment_detail' experiment.pk %}" class="breadcrumb-link">Detalle del Experimento</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Subir Nota de Consentimiento</li>
+                </ol>
+            </nav>
         </div>
+    </div>
 
-        <div class="upload-button-container">
-            <button type="submit" class="btn-save-teal">Subir Nota</button>
+    <!-- Main Card -->
+    <div class="row justify-content-center px-4">
+        <div class="col-12 col-xl-10">
+            <div class="card border-0 shadow-sm" style="border-radius: 20px; padding: 2rem;">
+                <div class="card-body p-0">
+                    <div class="upload-header-redesigned">
+                        <h2 class="upload-title-elegant">Subir Nota de Consentimiento</h2>
+                        <a href="{% url 'experiment_detail' experiment.pk %}" class="btn-back-elegant">
+                            <i class="fas fa-arrow-left"></i> Volver
+                        </a>
+                    </div>
+
+                    {% if error_message %}
+                    <div class="alert alert-danger" style="border-radius: 12px; margin-bottom: 1.5rem; font-weight: 500;">
+                        <i class="fas fa-exclamation-circle me-2"></i>{{ error_message }}
+                    </div>
+                    {% endif %}
+
+                    <form method="post" enctype="multipart/form-data" class="upload-form-centered">
+                        {% csrf_token %}
+                        <div class="file-input-container">
+                            <label for="consent_file">Note file</label>
+                            <input type="file" name="consent_file" id="consent_file" accept=".pdf,application/pdf" required
+                                class="file-input-custom" onchange="displayFileName(this)">
+                            <div class="file-name-display" id="file-name-display" style="display: none;"></div>
+                        </div>
+
+                        <div class="upload-button-container">
+                            <button type="submit" class="btn-save-teal">Subir Nota</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
-    </form>
+    </div>
 </div>
+
+<style>
+    .content-area {
+        background-color: #E6F0FF !important;
+        padding: 0 !important;
+    }
+</style>
 
 <script>
     function displayFileName(input) {

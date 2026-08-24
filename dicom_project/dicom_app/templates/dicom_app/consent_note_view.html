@@ -10,6 +10,19 @@
         </div>
     </div>
 
+    <!-- Breadcrumb -->
+    <div class="row justify-content-center px-4 mb-3">
+        <div class="col-12 col-xl-10">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb breadcrumb-custom">
+                    <li class="breadcrumb-item"><a href="{% url 'participant_list' %}" class="breadcrumb-link">Participantes</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'participant_experiments' participant.pk %}" class="breadcrumb-link">Experimentos del Participante</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Nota de Consentimiento</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
     <!-- Main Card -->
     <div class="row justify-content-center px-4">
         <div class="col-12 col-xl-10">
@@ -92,7 +105,7 @@
                     <div class="d-flex justify-content-center mt-4">
                         <a href="{% url 'participant_experiments' participant.pk %}" class="btn"
                             style="background-color: #fff; color: #666; font-weight: 500; border: 1px solid #ddd; border-radius: 5px; padding: 0.5rem 1.5rem; font-size: 0.9rem;">
-                            ← Volver al listado
+                            ← Atrás
                         </a>
                     </div>
 

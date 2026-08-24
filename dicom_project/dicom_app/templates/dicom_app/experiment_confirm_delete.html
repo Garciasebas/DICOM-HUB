@@ -6,27 +6,19 @@
     /* Estilos encapsulados solo para esta página de confirmación de eliminación */
     .delete-confirmation-wrapper {
         min-height: 100vh;
-        background-color: #E8EAF6;
+        background-color: #E6F0FF;
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding-top: 60px;
+        padding-top: 0;
         padding-bottom: 60px;
-    }
-
-    .delete-confirmation-header {
-        font-size: 32px;
-        font-weight: 700;
-        color: #5C6BC0;
-        text-align: center;
-        margin-bottom: 40px;
-        letter-spacing: 2px;
+        margin: -3rem;
     }
 
     .delete-confirmation-card {
         background: white;
-        border-radius: 16px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        border-radius: 20px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         padding: 40px 50px;
         max-width: 500px;
         width: 90%;
@@ -99,10 +91,33 @@
         background-color: #F5F5F5;
         border-color: #BBB;
     }
+
+    .content-area {
+        background-color: #E6F0FF !important;
+        padding: 0 !important;
+    }
 </style>
 
 <div class="delete-confirmation-wrapper">
-    <div class="delete-confirmation-header">DICOM HUB</div>
+    <!-- Header Title -->
+    <div class="row mb-4 pt-4 w-100">
+        <div class="col-12 text-center">
+            <h1 style="color: #5B7CFA; font-weight: 800; font-size: 2.5rem; letter-spacing: 2px;">DICOM HUB</h1>
+        </div>
+    </div>
+
+    <!-- Breadcrumb -->
+    <div class="row justify-content-center px-4 mb-3 w-100">
+        <div class="col-12 col-xl-10">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb breadcrumb-custom justify-content-center">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="breadcrumb-link">Listado de Experimentos</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'experiment_detail' object.pk %}" class="breadcrumb-link">Detalle del Experimento</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Eliminar Experimento</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
 
     <div class="delete-confirmation-card">
         <h2>Confirmar Eliminación</h2>
@@ -126,5 +141,4 @@
         </form>
     </div>
 </div>
-
 {% endblock %}

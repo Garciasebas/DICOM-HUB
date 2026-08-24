@@ -1,4 +1,4 @@
-﻿from django.db import models
+from django.db import models
 from django.contrib.auth.models import User
 
 class Experiment(models.Model):
@@ -6,6 +6,13 @@ class Experiment(models.Model):
     description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=50, default='Active')
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name='created_experiments',
+        null=True,
+        blank=True
+    )
 
     def __str__(self):
         return self.name
@@ -18,6 +25,14 @@ class Participant(models.Model):
     phone = models.CharField(max_length=20, blank=True)
     details = models.TextField(blank=True)
     experiments = models.ManyToManyField(Experiment, related_name='participants', blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['first_name', 'last_name'],
+                name='unique_participant_first_last_name'
+            )
+        ]
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
@@ -43,16 +58,16 @@ class Member(models.Model):
     email = models.EmailField(blank=True)
     experiments = models.ManyToManyField(Experiment, related_name='members', blank=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['first_name', 'last_name'],
+                name='unique_member_first_last_name'
+            )
+        ]
+
     def __str__(self):
         return f"{self.first_name} {self.last_name} - {self.role}"
-
-class TeamMember(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    role = models.CharField(max_length=100)
-    experiments = models.ManyToManyField(Experiment, related_name='team_members')
-
-    def __str__(self):
-        return f"{self.user.username} - {self.role}"
 
 class ConsentFile(models.Model):
     participant = models.ForeignKey(Participant, on_delete=models.CASCADE, related_name='consent_files')
