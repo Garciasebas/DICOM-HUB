@@ -24,7 +24,12 @@ class Participant(models.Model):
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=20, blank=True)
     details = models.TextField(blank=True)
-    experiments = models.ManyToManyField(Experiment, related_name='participants', blank=True)
+    experiments = models.ManyToManyField(
+        Experiment,
+        through='ExperimentParticipant',
+        related_name='participants',
+        blank=True
+    )
 
     class Meta:
         constraints = [
@@ -36,6 +41,58 @@ class Participant(models.Model):
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
+
+class ParticipantGroup(models.Model):
+    experiment = models.ForeignKey(
+        Experiment,
+        on_delete=models.CASCADE,
+        related_name='groups'
+    )
+    name = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['experiment', 'name'],
+                name='unique_group_name_per_experiment'
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.experiment.name})"
+
+class ExperimentParticipant(models.Model):
+    experiment = models.ForeignKey(
+        Experiment,
+        on_delete=models.CASCADE,
+        related_name='experiment_participants'
+    )
+    participant = models.ForeignKey(
+        Participant,
+        on_delete=models.CASCADE,
+        related_name='experiment_participants'
+    )
+    group = models.ForeignKey(
+        ParticipantGroup,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='experiment_participants'
+    )
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['experiment', 'participant'],
+                name='unique_participant_per_experiment'
+            )
+        ]
+
+    def __str__(self):
+        group_str = f" - Group: {self.group.name}" if self.group else ""
+        return f"{self.participant} in {self.experiment}{group_str}"
 
 class Member(models.Model):
     ROLE_CHOICES = [
