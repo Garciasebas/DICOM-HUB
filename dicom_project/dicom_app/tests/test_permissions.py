@@ -3,7 +3,7 @@ import uuid
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth.models import User
-from dicom_app.models import Experiment, Participant, Member, DicomFile
+from dicom_app.models import Experiment, Participant, Member, DicomFile, ParticipantGroup, ExperimentParticipant
 
 def json_bytes(data):
     return json.dumps(data).encode('utf-8')
@@ -40,12 +40,13 @@ class PermissionsAndIsolationTestCase(TestCase):
         self.exp1_name = f'Exp_Inv1_{self.uid}'
         res_create1 = self.client1.post(url_create, data={
             'name': self.exp1_name,
-            'description': 'Experimento de Investigador 1',
-            'participants': [self.part_shared.pk],
-            'members': [self.member_shared.pk]
+            'description': 'Experimento de Investigador 1'
         })
         self.assertIn(res_create1.status_code, [200, 302])
         self.exp1 = Experiment.objects.get(name=self.exp1_name)
+        group1 = ParticipantGroup.objects.create(experiment=self.exp1, name="Grupo 1")
+        ExperimentParticipant.objects.create(experiment=self.exp1, participant=self.part_shared, group=group1)
+        self.exp1.members.add(self.member_shared)
 
         self.dicom1 = DicomFile.objects.create(
             participant=self.part_shared,

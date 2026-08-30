@@ -126,35 +126,23 @@ class NavigationAndValidationTestCase(TestCase):
         self.assertIn('La descripción del experimento es obligatoria.', res_only_name.content.decode('utf-8'))
         self.assertFalse(Experiment.objects.filter(name='Solo Nombre').exists())
 
-    def test_08_experiment_create_validation_no_participants(self):
+    def test_08_experiment_create_without_participants_or_members_is_valid(self):
         url_create_exp = reverse('experiment_create')
         res_name_desc = self.client.post(url_create_exp, data={
-            'name': 'Nombre y Desc',
-            'description': 'Una descripcion valida',
-            'members': [self.member.pk]
+            'name': 'Nombre y Desc Solo',
+            'description': 'Una descripcion valida'
         })
-        self.assertEqual(res_name_desc.status_code, 200)
-        self.assertIn('Debe seleccionar al menos un participante.', res_name_desc.content.decode('utf-8'))
-        self.assertFalse(Experiment.objects.filter(name='Nombre y Desc').exists())
-
-    def test_09_experiment_create_validation_no_members(self):
-        url_create_exp = reverse('experiment_create')
-        res_no_members = self.client.post(url_create_exp, data={
-            'name': 'Sin Miembros',
-            'description': 'Otra descripcion',
-            'participants': [self.participant.pk]
-        })
-        self.assertEqual(res_no_members.status_code, 200)
-        self.assertIn('Debe seleccionar al menos un miembro del equipo.', res_no_members.content.decode('utf-8'))
-        self.assertFalse(Experiment.objects.filter(name='Sin Miembros').exists())
+        self.assertIn(res_name_desc.status_code, [200, 302])
+        created_exp = Experiment.objects.filter(name='Nombre y Desc Solo').first()
+        self.assertIsNotNone(created_exp)
+        self.assertEqual(created_exp.participants.count(), 0)
+        self.assertEqual(created_exp.members.count(), 0)
 
     def test_10_experiment_create_validation_empty_name(self):
         url_create_exp = reverse('experiment_create')
         res_empty_name = self.client.post(url_create_exp, data={
             'name': '   ',
-            'description': 'Descripcion valida',
-            'participants': [self.participant.pk],
-            'members': [self.member.pk]
+            'description': 'Descripcion valida'
         })
         self.assertEqual(res_empty_name.status_code, 200)
         self.assertIn('El nombre del experimento es obligatorio.', res_empty_name.content.decode('utf-8'))
@@ -163,9 +151,7 @@ class NavigationAndValidationTestCase(TestCase):
         url_create_exp = reverse('experiment_create')
         res_empty_desc = self.client.post(url_create_exp, data={
             'name': 'Nombre Valido',
-            'description': '    ',
-            'participants': [self.participant.pk],
-            'members': [self.member.pk]
+            'description': '    '
         })
         self.assertEqual(res_empty_desc.status_code, 200)
         self.assertIn('La descripción del experimento es obligatoria.', res_empty_desc.content.decode('utf-8'))
@@ -175,9 +161,7 @@ class NavigationAndValidationTestCase(TestCase):
         long_desc = 'A' * 301
         res_long_desc = self.client.post(url_create_exp, data={
             'name': 'Nombre Valido',
-            'description': long_desc,
-            'participants': [self.participant.pk],
-            'members': [self.member.pk]
+            'description': long_desc
         })
         self.assertEqual(res_long_desc.status_code, 200)
         self.assertIn('La descripción del experimento no puede superar los 300 caracteres.', res_long_desc.content.decode('utf-8'))
@@ -187,12 +171,9 @@ class NavigationAndValidationTestCase(TestCase):
         exp_valid_name = f'Experimento_Valido_{self.uid}'
         res_valid = self.client.post(url_create_exp, data={
             'name': exp_valid_name,
-            'description': 'Descripcion completa y valida.',
-            'participants': [self.participant.pk],
-            'members': [self.member.pk]
+            'description': 'Descripcion completa y valida.'
         })
         self.assertIn(res_valid.status_code, [200, 302])
         created_exp = Experiment.objects.filter(name=exp_valid_name).first()
         self.assertIsNotNone(created_exp)
-        self.assertEqual(created_exp.participants.count(), 1)
-        self.assertEqual(created_exp.members.count(), 1)
+        self.assertEqual(created_exp.name, exp_valid_name)

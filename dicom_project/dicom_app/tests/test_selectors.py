@@ -62,66 +62,55 @@ class SelectorIsolationTestCase(TestCase):
         self.exp_C.participants.add(self.part_C)
         self.exp_C.members.add(self.member_C)
 
-    def test_01_researcher_sees_own_participants_and_members_in_form(self):
-        url_create = reverse('experiment_create')
-        res1 = self.client1.get(url_create)
+    def test_01_researcher_sees_own_participants_and_members_in_detail_context(self):
+        url_detail = reverse('experiment_detail', args=[self.exp_A.pk])
+        res1 = self.client1.get(url_detail)
         self.assertEqual(res1.status_code, 200)
-        form1 = get_form_from_response(res1)
-        self.assertIsNotNone(form1)
-        self.assertIn(self.part_A, form1.fields['participants'].queryset)
-        self.assertIn(self.member_A, form1.fields['members'].queryset)
+        self.assertIn(self.part_A.pk, res1.context['experiment_participants'].values_list('participant_id', flat=True))
+        self.assertIn(self.member_A, res1.context['experiment'].members.all())
 
     def test_02_researcher_does_not_see_other_researcher_participants_and_members(self):
-        url_create = reverse('experiment_create')
-        res1 = self.client1.get(url_create)
-        form1 = get_form_from_response(res1)
-        self.assertNotIn(self.part_B, form1.fields['participants'].queryset)
-        self.assertNotIn(self.member_B, form1.fields['members'].queryset)
+        url_detail = reverse('experiment_detail', args=[self.exp_A.pk])
+        res1 = self.client1.get(url_detail)
+        self.assertNotIn(self.part_B, res1.context['available_participants'])
+        self.assertNotIn(self.member_B, res1.context['available_members'])
 
     def test_03_researcher_does_not_see_admin_participants_and_members(self):
-        url_create = reverse('experiment_create')
-        res1 = self.client1.get(url_create)
-        form1 = get_form_from_response(res1)
-        self.assertNotIn(self.part_C, form1.fields['participants'].queryset)
-        self.assertNotIn(self.member_C, form1.fields['members'].queryset)
+        url_detail = reverse('experiment_detail', args=[self.exp_A.pk])
+        res1 = self.client1.get(url_detail)
+        self.assertNotIn(self.part_C, res1.context['available_participants'])
+        self.assertNotIn(self.member_C, res1.context['available_members'])
 
-    def test_04_admin_sees_all_participants_and_members_in_form(self):
-        url_create = reverse('experiment_create')
-        res_admin = self.client_admin.get(url_create)
+    def test_04_admin_sees_all_available_participants_and_members(self):
+        url_detail = reverse('experiment_detail', args=[self.exp_C.pk])
+        res_admin = self.client_admin.get(url_detail)
         self.assertEqual(res_admin.status_code, 200)
-        form_admin = get_form_from_response(res_admin)
-        self.assertIn(self.part_A, form_admin.fields['participants'].queryset)
-        self.assertIn(self.part_B, form_admin.fields['participants'].queryset)
-        self.assertIn(self.part_C, form_admin.fields['participants'].queryset)
-        self.assertIn(self.member_A, form_admin.fields['members'].queryset)
-        self.assertIn(self.member_B, form_admin.fields['members'].queryset)
-        self.assertIn(self.member_C, form_admin.fields['members'].queryset)
+        self.assertIn(self.part_A, res_admin.context['available_participants'])
+        self.assertIn(self.part_B, res_admin.context['available_participants'])
+        self.assertIn(self.member_A, res_admin.context['available_members'])
+        self.assertIn(self.member_B, res_admin.context['available_members'])
 
     def test_05_backend_rejects_tampered_post_with_other_researcher_participant(self):
-        url_create = reverse('experiment_create')
-        res_post_part_B = self.client1.post(url_create, data={
-            'name': 'Intento Hack Participante B',
-            'description': 'Prueba POST no permitido',
-            'participants': [self.part_B.pk],
-            'members': [self.member_A.pk]
-        })
-        self.assertEqual(res_post_part_B.status_code, 200)
-        form_err1 = get_form_from_response(res_post_part_B)
-        self.assertIn('participants', form_err1.errors)
-        self.assertFalse(Experiment.objects.filter(name='Intento Hack Participante B').exists())
+        from dicom_app.models import ParticipantGroup
+        group_A = ParticipantGroup.objects.create(experiment=self.exp_A, name="Grupo A")
+        url_add = reverse('add_participants_to_experiment', args=[self.exp_A.pk])
+        res_post_part_B = self.client1.post(
+            url_add,
+            data=json_bytes({'participant_id': self.part_B.pk, 'group_id': group_A.pk}),
+            content_type='application/json'
+        )
+        self.assertEqual(res_post_part_B.status_code, 403)
+        self.assertNotIn(self.part_B, self.exp_A.participants.all())
 
     def test_06_backend_rejects_tampered_post_with_other_researcher_member(self):
-        url_create = reverse('experiment_create')
-        res_post_member_B = self.client1.post(url_create, data={
-            'name': 'Intento Hack Miembro B',
-            'description': 'Prueba POST no permitido',
-            'participants': [self.part_A.pk],
-            'members': [self.member_B.pk]
-        })
-        self.assertEqual(res_post_member_B.status_code, 200)
-        form_err2 = get_form_from_response(res_post_member_B)
-        self.assertIn('members', form_err2.errors)
-        self.assertFalse(Experiment.objects.filter(name='Intento Hack Miembro B').exists())
+        url_add = reverse('add_members_to_experiment', args=[self.exp_A.pk])
+        res_post_member_B = self.client1.post(
+            url_add,
+            data=json_bytes({'member_ids': [self.member_B.pk]}),
+            content_type='application/json'
+        )
+        self.assertEqual(res_post_member_B.status_code, 403)
+        self.assertNotIn(self.member_B, self.exp_A.members.all())
 
     def test_07_ajax_duplicate_participant_creation_returns_400(self):
         res_ajax_part_dup = self.client1.post(
@@ -141,34 +130,47 @@ class SelectorIsolationTestCase(TestCase):
         )
         self.assertEqual(res_ajax_mem_dup.status_code, 400)
 
-    def test_09_new_researcher_with_no_experiments_has_empty_form_selects(self):
+    def test_09_new_researcher_with_no_experiments_has_empty_available_selects(self):
         inv_clean = User.objects.create_user(username=f'clean_inv_{self.uid}', password='password123')
         client_clean = Client()
         client_clean.login(username=f'clean_inv_{self.uid}', password='password123')
-        res_clean = client_clean.get(reverse('experiment_create'))
-        form_clean = get_form_from_response(res_clean)
-        self.assertEqual(form_clean.fields['participants'].queryset.count(), 0)
-        self.assertEqual(form_clean.fields['members'].queryset.count(), 0)
+        exp_clean = Experiment.objects.create(name=f'Exp_Clean_{self.uid}', description='Clean', created_by=inv_clean)
+        res_clean = client_clean.get(reverse('experiment_detail', args=[exp_clean.pk]))
+        self.assertEqual(res_clean.context['available_participants'].count(), 0)
+        self.assertEqual(res_clean.context['available_members'].count(), 0)
 
-    def test_10_admin_can_create_experiment_selecting_any_participant_and_member(self):
-        url_create = reverse('experiment_create')
-        res_valid_admin = self.client_admin.post(url_create, data={
-            'name': f'ExpAdmin_All_{self.uid}',
-            'description': 'Exp creado por admin',
-            'participants': [self.part_A.pk, self.part_B.pk, self.part_C.pk],
-            'members': [self.member_A.pk, self.member_B.pk, self.member_C.pk]
-        })
-        self.assertIn(res_valid_admin.status_code, [200, 302])
-        exp_admin_created = Experiment.objects.get(name=f'ExpAdmin_All_{self.uid}')
-        self.assertEqual(exp_admin_created.participants.count(), 3)
-        self.assertEqual(exp_admin_created.members.count(), 3)
+    def test_10_admin_can_add_any_participant_and_member_from_detail(self):
+        from dicom_app.models import ParticipantGroup
+        group_C = ParticipantGroup.objects.create(experiment=self.exp_C, name="Grupo C")
+        url_add_p = reverse('add_participants_to_experiment', args=[self.exp_C.pk])
+        res_add_p = self.client_admin.post(
+            url_add_p,
+            data=json_bytes({'participant_ids': [self.part_A.pk, self.part_B.pk], 'group_id': group_C.pk}),
+            content_type='application/json'
+        )
+        self.assertEqual(res_add_p.status_code, 200)
+
+        url_add_m = reverse('add_members_to_experiment', args=[self.exp_C.pk])
+        res_add_m = self.client_admin.post(
+            url_add_m,
+            data=json_bytes({'member_ids': [self.member_A.pk, self.member_B.pk]}),
+            content_type='application/json'
+        )
+        self.assertEqual(res_add_m.status_code, 200)
+
+        self.assertEqual(self.exp_C.participants.count(), 3)
+        self.assertEqual(self.exp_C.members.count(), 3)
 
     def test_11_plus_button_created_participant_and_member_isolated_to_creator(self):
-        url_create = reverse('experiment_create')
-
+        from dicom_app.models import ParticipantGroup
+        group_A = ParticipantGroup.objects.create(experiment=self.exp_A, name="Grupo A Test 11")
         res_create_p = self.client1.post(
             reverse('create_participant_ajax'),
-            data=json_bytes({'full_name': f'NuevoPart_{self.uid} Test'}),
+            data=json_bytes({
+                'full_name': f'NuevoPart_{self.uid} Test',
+                'experiment_id': self.exp_A.pk,
+                'group_id': group_A.pk
+            }),
             content_type='application/json',
             HTTP_X_REQUESTED_WITH='XMLHttpRequest'
         )
@@ -183,16 +185,8 @@ class SelectorIsolationTestCase(TestCase):
         )
         self.assertEqual(res_create_m.status_code, 200)
         new_mem_id = res_create_m.json().get('id')
+        self.exp_A.members.add(new_mem_id)
 
-        res_exp_new = self.client1.post(url_create, data={
-            'name': f'Exp_NuevoInv1_{self.uid}',
-            'description': 'Exp con nuevos participantes',
-            'participants': [new_part_id],
-            'members': [new_mem_id]
-        })
-        self.assertIn(res_exp_new.status_code, [200, 302])
-
-        res_inv2_form = self.client2.get(url_create)
-        form_inv2 = get_form_from_response(res_inv2_form)
-        self.assertNotIn(Participant.objects.get(pk=new_part_id), form_inv2.fields['participants'].queryset)
-        self.assertNotIn(Member.objects.get(pk=new_mem_id), form_inv2.fields['members'].queryset)
+        res_inv2_detail = self.client2.get(reverse('experiment_detail', args=[self.exp_B.pk]))
+        self.assertNotIn(Participant.objects.get(pk=new_part_id), res_inv2_detail.context['available_participants'])
+        self.assertNotIn(Member.objects.get(pk=new_mem_id), res_inv2_detail.context['available_members'])

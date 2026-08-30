@@ -3,30 +3,9 @@ from .models import DicomFile, DicomTag, Experiment, Participant, Member
 from .utils import get_user_participants, get_user_members
 
 class ExperimentForm(forms.ModelForm):
-    participants = forms.ModelMultipleChoiceField(
-        queryset=Participant.objects.none(),
-        widget=forms.SelectMultiple(attrs={'class': 'form-select-multiple'}),
-        required=True,
-        error_messages={'required': 'Debe seleccionar al menos un participante.'},
-        label='Participantes'
-    )
-    members = forms.ModelMultipleChoiceField(
-        queryset=Member.objects.none(),
-        widget=forms.SelectMultiple(attrs={'class': 'form-select-multiple'}),
-        required=True,
-        error_messages={'required': 'Debe seleccionar al menos un miembro del equipo.'},
-        label='Miembros del Equipo'
-    )
-    
     def __init__(self, *args, **kwargs):
-        user = kwargs.pop('user', None)
+        kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-        if user is not None:
-            self.fields['participants'].queryset = get_user_participants(user)
-            self.fields['members'].queryset = get_user_members(user)
-        else:
-            self.fields['participants'].queryset = Participant.objects.all()
-            self.fields['members'].queryset = Member.objects.all()
     
     class Meta:
         model = Experiment
@@ -67,25 +46,6 @@ class ExperimentForm(forms.ModelForm):
         if len(description) > 300:
             raise forms.ValidationError("La descripción del experimento no puede superar los 300 caracteres.")
         return description.strip()
-
-    def clean_participants(self):
-        participants = self.cleaned_data.get('participants')
-        if not participants or participants.count() == 0:
-            raise forms.ValidationError("Debe seleccionar al menos un participante.")
-        return participants
-
-    def clean_members(self):
-        members = self.cleaned_data.get('members')
-        if not members or members.count() == 0:
-            raise forms.ValidationError("Debe seleccionar al menos un miembro del equipo.")
-        return members
-
-    def save(self, commit=True):
-        experiment = super().save(commit=commit)
-        if commit:
-            experiment.participants.set(self.cleaned_data['participants'])
-            experiment.members.set(self.cleaned_data['members'])
-        return experiment
 
 class DicomFileForm(forms.ModelForm):
     class Meta:

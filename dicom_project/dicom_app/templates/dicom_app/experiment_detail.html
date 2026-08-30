@@ -74,33 +74,82 @@
                         </div>
                     </div>
 
+                    <!-- Section: Grupos -->
+                    <div class="d-flex align-items-center justify-content-between mb-3 mt-4">
+                        <h3 class="section-title-centered-large m-0">Grupos</h3>
+                        <button type="button" onclick="openCreateGroupModal()" class="btn-icon-add" title="Crear nuevo grupo">+</button>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 mb-4 p-3" style="background: #F8FAFC; border-radius: 12px; border: 1px dashed #CBD5E1;">
+                        {% for group in groups %}
+                        <div class="dropdown d-inline-block">
+                            <span class="badge dropdown-toggle" id="groupDropdown{{ group.id }}" data-bs-toggle="dropdown" aria-expanded="false" style="background-color: #2B7A9B; font-size: 0.95rem; padding: 8px 14px; border-radius: 20px; font-weight: 500; cursor: pointer;">
+                                <i class="fas fa-users me-1"></i>{{ group.name }}
+                            </span>
+                            <ul class="dropdown-menu shadow border-0" aria-labelledby="groupDropdown{{ group.id }}" style="border-radius: 12px; font-size: 0.9rem;">
+                                <li>
+                                    <a class="dropdown-item" href="javascript:void(0)" onclick="viewGroupParticipants('{{ group.id }}', '{{ group.name|escapejs }}')">
+                                        <i class="fas fa-eye me-2 text-primary"></i>Ver participantes
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider m-1"></li>
+                                <li>
+                                    <a class="dropdown-item text-danger" href="javascript:void(0)" onclick="confirmDeleteGroup('{{ group.id }}', '{{ group.name|escapejs }}')">
+                                        <i class="fas fa-trash-can me-2"></i>Eliminar grupo
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                        {% empty %}
+                        <span class="text-muted" style="font-size: 0.9rem;">No hay grupos registrados en este experimento. Haga clic en <strong>+</strong> para crear uno.</span>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Section: Participantes -->
                     <div class="d-flex align-items-center justify-content-between mb-3 mt-4">
                         <h3 class="section-title-centered-large m-0">Participantes</h3>
                         <button type="button" id="open-participants-modal-btn" onclick="openParticipantsModal()" class="btn-icon-add" title="Agregar o crear participante">+</button>
                     </div>
-                    <div class="participants-table">
-                        {% for participant in experiment.participants.all %}
-                        <div class="participant-row-detail">
-                            <div class="participant-name-bold" title="{{ participant.first_name }} {{ participant.last_name }}">
-                                <a href="{% url 'participant_experiments' participant.pk %}?from_experiment={{ experiment.pk }}" class="participant-name-link">
-                                    {{ participant.first_name }} {{ participant.last_name }}
+                    <div class="participants-table" style="background: white; border-radius: 12px; border: 1px solid #E2E8F0; overflow: hidden;">
+                        <div class="participant-table-header" style="display: grid; grid-template-columns: 2fr 1.5fr 2fr 1.5fr 40px; align-items: center; gap: 1rem; padding: 0.75rem 1rem; background: #F1F5F9; font-weight: 700; font-size: 0.85rem; color: #475569; text-transform: uppercase;">
+                            <div>Participante</div>
+                            <div>Grupo</div>
+                            <div>Consentimiento</div>
+                            <div>DICOM</div>
+                            <div class="text-end">Acciones</div>
+                        </div>
+                        {% for ep in experiment_participants %}
+                        <div class="participant-row-detail" style="display: grid; grid-template-columns: 2fr 1.5fr 2fr 1.5fr 40px; align-items: center; gap: 1rem; padding: 0.75rem 1rem; border-bottom: 1px solid #E2E8F0;">
+                            <div class="participant-name-bold" title="{{ ep.participant.first_name }} {{ ep.participant.last_name }}">
+                                <a href="{% url 'participant_experiments' ep.participant.pk %}?from_experiment={{ experiment.pk }}" class="participant-name-link">
+                                    {{ ep.participant.first_name }} {{ ep.participant.last_name }}
                                 </a>
                             </div>
-                            <div class="participant-action-col">
-                                <a href="{% url 'upload_consent_note' experiment.pk participant.pk %}" class="link-blue">Subir nota de consentimiento</a>
+                            <div class="participant-group-col">
+                                {% if ep.group %}
+                                <span class="badge" style="background-color: #2B7A9B; font-size: 0.85rem; font-weight: 600;">{{ ep.group.name }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary text-white" style="font-size: 0.85rem;">Sin grupo</span>
+                                {% endif %}
+                                <button type="button" class="btn-edit-small ms-1" onclick="openAssignGroupModal('{{ ep.participant.pk }}', '{{ ep.group.pk|default:'' }}')" title="Cambiar grupo">
+                                    <i class="fas fa-pen"></i> Cambiar
+                                </button>
                             </div>
                             <div class="participant-action-col">
-                                <a href="{% url 'upload_participant_dicom' experiment.pk participant.pk %}" class="link-blue">Subir DICOM</a>
+                                <a href="{% url 'upload_consent_note' experiment.pk ep.participant.pk %}" class="link-blue">Subir nota de consentimiento</a>
                             </div>
-                            <div class="participant-action-col action-col-x">
-                                <button type="button" class="btn-remove-x" onclick="confirmRemoveParticipant('{{ participant.pk }}')" title="Quitar participante del experimento">X</button>
+                            <div class="participant-action-col">
+                                <a href="{% url 'upload_participant_dicom' experiment.pk ep.participant.pk %}" class="link-blue">Subir DICOM</a>
+                            </div>
+                            <div class="participant-action-col action-col-x text-end">
+                                <button type="button" class="btn-remove-x" onclick="confirmRemoveParticipant('{{ ep.participant.pk }}')" title="Quitar participante del experimento">X</button>
                             </div>
                         </div>
                         {% empty %}
-                        <p style="text-align: center; color: #95a5a6; padding: 2rem 0;">No hay participantes registrados.</p>
+                        <p style="text-align: center; color: #95a5a6; padding: 2rem 0; margin: 0;">No hay participantes registrados en este experimento.</p>
                         {% endfor %}
                     </div>
 
+                    <!-- Section: Miembros del Equipo -->
                     <div class="d-flex align-items-center justify-content-between mb-3 mt-4">
                         <h3 class="section-title-centered-large m-0">Miembros del Equipo</h3>
                         <button type="button" id="open-members-modal-btn" onclick="openMembersModal()" class="btn-icon-add" title="Agregar o crear miembro">+</button>
@@ -176,7 +225,6 @@
         color: #2B7A9B;
     }
 
-    /* Fix for linebreaks in readonly view */
     .textarea-readonly {
         white-space: pre-wrap;
         min-height: 100px;
@@ -225,7 +273,6 @@
         transform: scale(1.2);
     }
 
-    /* Modal Overlay Styles */
     .modal-overlay-custom {
         position: fixed;
         top: 0;
@@ -262,96 +309,6 @@
         transform: scale(1);
     }
 
-    /* Custom Multi-Select Styles for Modal */
-    .custom-multiselect-detail {
-        position: relative;
-        width: 100%;
-        margin-bottom: 1rem;
-    }
-
-    .multiselect-container-detail {
-        border: 1px solid #d1d5db;
-        border-radius: 8px;
-        background: white;
-        padding: 8px;
-        min-height: 42px;
-        cursor: text;
-    }
-
-    .multiselect-tags-detail {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin-bottom: 4px;
-    }
-
-    .multiselect-tag-detail {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        background: #3b82f6;
-        color: white;
-        padding: 4px 8px;
-        border-radius: 6px;
-        font-size: 13px;
-        font-weight: 500;
-    }
-
-    .multiselect-tag-remove-detail {
-        cursor: pointer;
-        font-weight: bold;
-        opacity: 0.8;
-    }
-
-    .multiselect-search-detail {
-        border: none;
-        outline: none;
-        width: 100%;
-        padding: 4px;
-        font-size: 14px;
-    }
-
-    .multiselect-dropdown-detail {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        margin-top: 4px;
-        background: white;
-        border: 1px solid #d1d5db;
-        border-radius: 8px;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        max-height: 200px;
-        overflow-y: auto;
-        z-index: 2050;
-        display: none;
-    }
-
-    .multiselect-dropdown-detail.active {
-        display: block;
-    }
-
-    .multiselect-option-detail {
-        padding: 10px 12px;
-        cursor: pointer;
-        font-size: 14px;
-        border-bottom: 1px solid #f3f4f6;
-    }
-
-    .multiselect-option-detail:hover {
-        background: #f3f4f6;
-    }
-
-    .multiselect-option-detail.selected {
-        background: #eff6ff;
-        color: #3b82f6;
-        font-weight: 500;
-    }
-
-    .multiselect-option-detail.hidden {
-        display: none;
-    }
-
     .link-quick-create {
         color: #3b82f6;
         font-weight: 600;
@@ -369,135 +326,92 @@
 
 <div style="display:none;">{% csrf_token %}</div>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const editBtn = document.getElementById('btn-edit-description');
-        const displayContainer = document.getElementById('description-display-container');
-        const editContainer = document.getElementById('description-edit-container');
-        const displayText = document.getElementById('description-display-text');
-        const input = document.getElementById('description-input');
-        const cancelBtn = document.getElementById('btn-cancel-edit');
-        const saveBtn = document.getElementById('btn-save-description');
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '{{ csrf_token }}';
+<!-- Modal Crear Grupo -->
+<div id="modal-create-group" class="modal-overlay-custom">
+    <div class="modal-card-custom" style="max-width: 420px;">
+        <h3 class="modal-title mb-3" style="font-size: 1.2rem; font-weight: 700; color: #000;">Nuevo Grupo</h3>
+        <div class="mb-3">
+            <label class="form-label" style="font-weight: 600;">Nombre del Grupo</label>
+            <input type="text" id="new-group-name" class="form-control" placeholder="Ej: control, experimental">
+        </div>
+        <div id="create-group-error" class="modal-error-alert" style="display: none; color: #991B1B; background: #FEE2E2; border: 1px solid #FCA5A5; padding: 0.5rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 1rem;">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            <span class="error-msg-text"></span>
+        </div>
+        <div class="d-flex justify-content-end gap-2">
+            <button type="button" onclick="closeCreateGroupModal()" class="btn btn-outline-secondary" style="border-radius: 8px; padding: 0.4rem 1.2rem; font-size: 0.9rem;">Cancelar</button>
+            <button type="button" id="confirm-create-group-btn" class="btn" style="background-color: #1E6091; color: #fff; font-weight: 600; border-radius: 8px; padding: 0.4rem 1.4rem; font-size: 0.9rem;">Crear Grupo</button>
+        </div>
+    </div>
+</div>
 
-        // Toggle Modes
-        if (editBtn && editContainer) {
-            editBtn.addEventListener('click', () => {
-                displayContainer.style.display = 'none';
-                editContainer.style.display = 'block';
-                input.focus();
-            });
+<!-- Modal Ver Participantes del Grupo -->
+<div id="modal-view-group" class="modal-overlay-custom">
+    <div class="modal-card-custom" style="max-width: 440px;">
+        <h3 class="modal-title mb-3" style="font-size: 1.2rem; font-weight: 700; color: #000;">
+            Grupo: <span id="view-group-title"></span>
+        </h3>
+        <div id="view-group-loading" class="text-center py-3 text-muted">
+            <i class="fas fa-spinner fa-spin me-2"></i>Cargando participantes...
+        </div>
+        <div id="view-group-empty" class="alert alert-info border-0 mb-3" style="display: none; background-color: #E0F2FE; color: #0369A1; font-size: 0.9rem; border-radius: 8px;">
+            <i class="fas fa-info-circle me-2"></i>Este grupo no tiene participantes asignados.
+        </div>
+        <ul id="view-group-list" class="list-group list-group-flush mb-3" style="display: none; max-height: 250px; overflow-y: auto;">
+        </ul>
+        <div class="d-flex justify-content-end">
+            <button type="button" onclick="closeViewGroupModal()" class="btn btn-secondary" style="border-radius: 8px; padding: 0.4rem 1.2rem; font-size: 0.9rem;">Cerrar</button>
+        </div>
+    </div>
+</div>
 
-            cancelBtn.addEventListener('click', () => {
-                displayContainer.style.display = 'flex';
-                editContainer.style.display = 'none';
-                input.value = displayText.innerText;
-            });
+<!-- Modal Confirmar Eliminar Grupo -->
+<div id="modal-delete-group" class="modal-overlay-custom">
+    <div class="modal-card-custom" style="max-width: 450px; text-align: center; padding: 2rem;">
+        <h3 class="mb-2" style="font-weight: 700; color: #000; font-size: 1.2rem;">
+            ¿Eliminar grupo "<span id="delete-group-title"></span>"?
+        </h3>
+        <p style="color: #666; font-size: 0.95rem;" class="mb-4">
+            Los participantes pertenecientes a este grupo no serán eliminados. Quedarán sin grupo y podrán ser reasignados posteriormente.
+        </p>
+        <input type="hidden" id="delete-group-id-input">
+        <div id="delete-group-error" class="modal-error-alert text-start mb-3" style="display: none; color: #991B1B; background: #FEE2E2; border: 1px solid #FCA5A5; padding: 0.5rem; border-radius: 6px; font-size: 0.85rem;">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            <span class="error-msg-text"></span>
+        </div>
+        <div class="d-flex justify-content-center gap-3">
+            <button type="button" onclick="closeDeleteGroupModal()" class="btn btn-outline-secondary" style="border-radius: 8px; padding: 0.5rem 1.5rem; font-weight: 500;">Cancelar</button>
+            <button type="button" id="btn-confirm-delete-group" class="btn" style="background-color: #DC3545; color: #fff; font-weight: 600; border-radius: 8px; padding: 0.5rem 1.5rem;">Eliminar</button>
+        </div>
+    </div>
+</div>
 
-            saveBtn.addEventListener('click', () => {
-                const newDescription = input.value;
+<!-- Modal Cambiar Grupo -->
+<div id="modal-assign-group" class="modal-overlay-custom">
+    <div class="modal-card-custom" style="max-width: 420px;">
+        <h3 class="modal-title mb-3" style="font-size: 1.2rem; font-weight: 700; color: #000;">Cambiar Grupo del Participante</h3>
+        <input type="hidden" id="assign-group-participant-id">
+        <div class="mb-3">
+            <label class="form-label" style="font-weight: 600;">Seleccionar Nuevo Grupo</label>
+            <select id="assign-group-select" class="form-select">
+                <option value="">-- Seleccionar grupo --</option>
+                {% for g in groups %}
+                <option value="{{ g.id }}">{{ g.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div id="assign-group-error" class="modal-error-alert" style="display: none; color: #991B1B; background: #FEE2E2; border: 1px solid #FCA5A5; padding: 0.5rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 1rem;">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            <span class="error-msg-text"></span>
+        </div>
+        <div class="d-flex justify-content-end gap-2">
+            <button type="button" onclick="closeAssignGroupModal()" class="btn btn-outline-secondary" style="border-radius: 8px; padding: 0.4rem 1.2rem; font-size: 0.9rem;">Cancelar</button>
+            <button type="button" id="confirm-assign-group-btn" class="btn" style="background-color: #1E6091; color: #fff; font-weight: 600; border-radius: 8px; padding: 0.4rem 1.4rem; font-size: 0.9rem;">Guardar Grupo</button>
+        </div>
+    </div>
+</div>
 
-                saveBtn.disabled = true;
-                saveBtn.textContent = 'Guardando...';
-
-                fetch("{% url 'update_experiment_description' experiment.pk %}", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: JSON.stringify({ description: newDescription })
-                })
-                .then(r => r.json())
-                .then(data => {
-                    saveBtn.disabled = false;
-                    saveBtn.textContent = 'Guardar cambios';
-
-                    if (data.status === 'success') {
-                        displayText.innerText = data.description;
-                        input.value = data.description;
-
-                        displayContainer.style.display = 'flex';
-                        editContainer.style.display = 'none';
-                    } else {
-                        alert('Error al guardar: ' + data.message);
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    saveBtn.disabled = false;
-                    saveBtn.textContent = 'Guardar cambios';
-                    alert('Error de conexión');
-                });
-            });
-        }
-
-        // Name Edit Logic
-        const editNameBtn = document.getElementById('btn-edit-name');
-        const nameDisplayContainer = document.getElementById('name-display-container');
-        const nameEditContainer = document.getElementById('name-edit-container');
-        const nameInput = document.getElementById('name-input');
-        const nameDisplayText = document.getElementById('name-display-text');
-        const cancelNameBtn = document.getElementById('btn-cancel-name');
-        const saveNameBtn = document.getElementById('btn-save-name');
-
-        if (editNameBtn && nameEditContainer) {
-            editNameBtn.addEventListener('click', () => {
-                nameDisplayContainer.style.display = 'none';
-                nameEditContainer.style.display = 'block';
-                nameInput.focus();
-            });
-
-            cancelNameBtn.addEventListener('click', () => {
-                nameDisplayContainer.style.display = 'flex';
-                nameEditContainer.style.display = 'none';
-                nameInput.value = nameDisplayText.innerText;
-            });
-
-            saveNameBtn.addEventListener('click', () => {
-                const newName = nameInput.value.trim();
-                if (!newName) {
-                    alert('El nombre del experimento no puede estar vacío.');
-                    return;
-                }
-
-                saveNameBtn.disabled = true;
-                saveNameBtn.textContent = 'Guardando...';
-
-                fetch("{% url 'update_experiment_name' experiment.pk %}", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: JSON.stringify({ name: newName })
-                })
-                .then(r => r.json())
-                .then(data => {
-                    saveNameBtn.disabled = false;
-                    saveNameBtn.textContent = 'Guardar cambios';
-
-                    if (data.status === 'success') {
-                        nameDisplayText.innerText = data.name;
-                        nameInput.value = data.name;
-
-                        nameDisplayContainer.style.display = 'flex';
-                        nameEditContainer.style.display = 'none';
-                    } else {
-                        alert('Error al guardar: ' + data.message);
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    saveNameBtn.disabled = false;
-                    saveNameBtn.textContent = 'Guardar cambios';
-                    alert('Error de conexión');
-                });
-            });
-        }
-    });
-</script>
-<!-- Modal Confirmar Eliminación -->
+<!-- Modal Confirmar Eliminación Experimento -->
 <div class="modal fade" id="deleteExperimentModal" tabindex="-1" aria-labelledby="deleteExperimentModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow" style="border-radius: 20px; padding: 2rem;">
@@ -516,24 +430,40 @@
     </div>
 </div>
 
-<!-- Modal Administrar Participantes -->
+<!-- Modal Agregar Participante Existente -->
 <div id="modal-manage-participants" class="modal-overlay-custom">
     <div class="modal-card-custom">
-        <h3 class="modal-title mb-3" style="font-size: 1.2rem; font-weight: 700; color: #000;">Agregar Participantes</h3>
+        <h3 class="modal-title mb-3" style="font-size: 1.2rem; font-weight: 700; color: #000;">Agregar Participante</h3>
         
-        <div class="custom-multiselect-detail" id="participants-multiselect-detail">
-            <div class="multiselect-container-detail">
-                <div class="multiselect-tags-detail" id="participants-tags-detail"></div>
-                <input type="text" class="multiselect-search-detail" placeholder="Buscar participante...">
-            </div>
-            <div class="multiselect-dropdown-detail" id="participants-dropdown-detail">
+        <div class="mb-3">
+            <label class="form-label" style="font-weight: 600;">Participante Existente</label>
+            <select id="select-participant-id" class="form-select">
+                <option value="">-- Seleccionar participante --</option>
                 {% for p in available_participants %}
-                <div class="multiselect-option-detail" data-value="{{ p.id }}">{{ p.first_name }} {{ p.last_name }}</div>
+                <option value="{{ p.id }}">{{ p.first_name }} {{ p.last_name }}</option>
                 {% endfor %}
-            </div>
+            </select>
         </div>
 
-        <div>
+        <div class="mb-3">
+            <label class="form-label" style="font-weight: 600;">Grupo (Obligatorio)</label>
+            <select id="select-participant-group-id" class="form-select">
+                <option value="">-- Seleccionar grupo --</option>
+                {% for g in groups %}
+                <option value="{{ g.id }}">{{ g.name }}</option>
+                {% endfor %}
+            </select>
+            {% if not groups %}
+            <small class="text-danger d-block mt-1">Primero debe crear al menos un grupo en este experimento.</small>
+            {% endif %}
+        </div>
+
+        <div id="add-participant-error" class="modal-error-alert" style="display: none; color: #991B1B; background: #FEE2E2; border: 1px solid #FCA5A5; padding: 0.5rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 1rem;">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            <span class="error-msg-text"></span>
+        </div>
+
+        <div class="mb-3">
             <span id="trigger-create-participant" onclick="openQuickParticipantModal()" class="link-quick-create">+ Crear nuevo participante</span>
         </div>
 
@@ -549,16 +479,13 @@
     <div class="modal-card-custom">
         <h3 class="modal-title mb-3" style="font-size: 1.2rem; font-weight: 700; color: #000;">Agregar Miembros del Equipo</h3>
         
-        <div class="custom-multiselect-detail" id="members-multiselect-detail">
-            <div class="multiselect-container-detail">
-                <div class="multiselect-tags-detail" id="members-tags-detail"></div>
-                <input type="text" class="multiselect-search-detail" placeholder="Buscar miembro...">
-            </div>
-            <div class="multiselect-dropdown-detail" id="members-dropdown-detail">
+        <div class="mb-3">
+            <select id="select-member-id" class="form-select">
+                <option value="">-- Seleccionar miembro existente --</option>
                 {% for m in available_members %}
-                <div class="multiselect-option-detail" data-value="{{ m.id }}">{{ m.first_name }} {{ m.last_name }}{% if m.role %} - {{ m.role }}{% endif %}</div>
+                <option value="{{ m.id }}">{{ m.first_name }} {{ m.last_name }}{% if m.role %} - {{ m.role }}{% endif %}</option>
                 {% endfor %}
-            </div>
+            </select>
         </div>
 
         <div>
@@ -574,10 +501,22 @@
 
 <!-- Sub-Modal Create Participant -->
 <div id="modal-participant-quick" class="modal-overlay-custom">
-    <div class="modal-card-custom" style="max-width: 400px;">
+    <div class="modal-card-custom" style="max-width: 440px;">
         <h3 class="modal-title mb-3" style="font-size: 1.1rem; font-weight: 700; color: #000;">Nuevo Participante</h3>
-        <input type="text" id="new-participant-name-detail" class="form-control mb-3" placeholder="Nombre y Apellido">
-        <div id="participant-quick-error" class="modal-error-alert" style="display: none;">
+        <div class="mb-3">
+            <label class="form-label" style="font-weight: 600;">Nombre y Apellido</label>
+            <input type="text" id="new-participant-name-detail" class="form-control" placeholder="Nombre y Apellido">
+        </div>
+        <div class="mb-3">
+            <label class="form-label" style="font-weight: 600;">Grupo (Obligatorio)</label>
+            <select id="new-participant-group-detail" class="form-select">
+                <option value="">-- Seleccionar grupo --</option>
+                {% for g in groups %}
+                <option value="{{ g.id }}">{{ g.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div id="participant-quick-error" class="modal-error-alert" style="display: none; color: #991B1B; background: #FEE2E2; border: 1px solid #FCA5A5; padding: 0.5rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 1rem;">
             <i class="fas fa-exclamation-triangle me-1"></i>
             <span class="error-msg-text"></span>
         </div>
@@ -607,7 +546,7 @@
             <option value="Asistente de Investigación">Asistente de Investigación</option>
             <option value="Bioestadístico/a o Científico/a de Datos">Bioestadístico/a o Científico/a de Datos</option>
         </select>
-        <div id="member-quick-error" class="modal-error-alert" style="display: none;">
+        <div id="member-quick-error" class="modal-error-alert" style="display: none; color: #991B1B; background: #FEE2E2; border: 1px solid #FCA5A5; padding: 0.5rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 1rem;">
             <i class="fas fa-exclamation-triangle me-1"></i>
             <span class="error-msg-text"></span>
         </div>
@@ -643,387 +582,486 @@
 </div>
 
 <script>
-    class DetailMultiSelect {
-        constructor(containerId) {
-            this.container = document.getElementById(containerId);
-            if (!this.container) return;
-            this.searchInput = this.container.querySelector('.multiselect-search-detail');
-            this.dropdown = this.container.querySelector('.multiselect-dropdown-detail');
-            this.tagsContainer = this.container.querySelector('.multiselect-tags-detail');
-            this.multiselectContainer = this.container.querySelector('.multiselect-container-detail');
-            this.selectedValues = new Set();
+    let participantToRemoveId = null;
+    let memberToRemoveId = null;
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '{{ csrf_token }}';
 
-            this.init();
-        }
-
-        init() {
-            this.bindOptionEvents();
-
-            this.searchInput.addEventListener('input', () => this.filterOptions());
-            this.searchInput.addEventListener('focus', () => this.openDropdown());
-            this.multiselectContainer.addEventListener('click', () => this.searchInput.focus());
-
-            document.addEventListener('click', (e) => {
-                if (!this.container.contains(e.target)) {
-                    this.closeDropdown();
-                }
-            });
-        }
-
-        bindOptionEvents() {
-            const options = this.dropdown.querySelectorAll('.multiselect-option-detail');
-            options.forEach(option => {
-                option.onclick = (e) => {
-                    e.stopPropagation();
-                    this.toggleOption(option.dataset.value, option.textContent);
-                };
-            });
-        }
-
-        addOption(value, text, selectIt = true) {
-            let existingOption = this.dropdown.querySelector(`.multiselect-option-detail[data-value="${value}"]`);
-            if (!existingOption) {
-                const div = document.createElement('div');
-                div.className = 'multiselect-option-detail';
-                div.textContent = text;
-                div.dataset.value = value;
-                div.onclick = (e) => {
-                    e.stopPropagation();
-                    this.toggleOption(value, text);
-                };
-                this.dropdown.appendChild(div);
-            }
-            if (selectIt) {
-                this.addValue(value, text);
-                this.updateDropdownState();
-            }
-        }
-
-        toggleOption(value, text) {
-            if (this.selectedValues.has(value)) {
-                this.removeValue(value);
-            } else {
-                this.addValue(value, text);
-            }
-            this.updateDropdownState();
-        }
-
-        addValue(value, text) {
-            if (this.selectedValues.has(value)) return;
-            this.selectedValues.add(value);
-
-            const tag = document.createElement('div');
-            tag.className = 'multiselect-tag-detail';
-            tag.dataset.value = value;
-            tag.innerHTML = `
-                <span>${text}</span>
-                <span class="multiselect-tag-remove-detail">×</span>
-            `;
-
-            tag.querySelector('.multiselect-tag-remove-detail').addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.removeValue(value);
-                this.updateDropdownState();
-            });
-
-            this.tagsContainer.appendChild(tag);
-        }
-
-        removeValue(value) {
-            this.selectedValues.delete(value);
-            const tag = this.tagsContainer.querySelector(`[data-value="${value}"]`);
-            if (tag) {
-                tag.remove();
-            }
-        }
-
-        updateDropdownState() {
-            const options = this.dropdown.querySelectorAll('.multiselect-option-detail');
-            options.forEach(option => {
-                if (this.selectedValues.has(option.dataset.value)) {
-                    option.classList.add('selected');
-                } else {
-                    option.classList.remove('selected');
-                }
-            });
-        }
-
-        filterOptions() {
-            const searchTerm = this.searchInput.value.toLowerCase();
-            const options = this.dropdown.querySelectorAll('.multiselect-option-detail');
-
-            options.forEach(option => {
-                const text = option.textContent.toLowerCase();
-                if (text.includes(searchTerm)) {
-                    option.classList.remove('hidden');
-                } else {
-                    option.classList.add('hidden');
-                }
-            });
-        }
-
-        openDropdown() {
-            this.dropdown.classList.add('active');
-        }
-
-        closeDropdown() {
-            this.dropdown.classList.remove('active');
-            this.searchInput.value = '';
-            this.filterOptions();
-        }
-
-        reset() {
-            this.selectedValues.clear();
-            this.tagsContainer.innerHTML = '';
-            this.updateDropdownState();
-            this.closeDropdown();
+    function toggleCustomModal(id, show) {
+        const modal = document.getElementById(id);
+        if (modal) {
+            if (show) modal.classList.add('active');
+            else modal.classList.remove('active');
         }
     }
 
-    let targetParticipantId = null;
-    let targetMemberId = null;
+    function showModalError(containerId, message) {
+        const el = document.getElementById(containerId);
+        if (el) {
+            const msgText = el.querySelector('.error-msg-text');
+            if (msgText) msgText.textContent = message;
+            el.style.display = 'block';
+        }
+    }
 
-    window.confirmRemoveParticipant = function(id) {
-        targetParticipantId = id;
-        const modal = document.getElementById('removeParticipantModal');
-        if (modal) modal.classList.add('active');
-    };
-    window.closeRemoveParticipantModal = function() {
-        targetParticipantId = null;
-        const modal = document.getElementById('removeParticipantModal');
-        if (modal) modal.classList.remove('active');
-    };
+    function hideModalError(containerId) {
+        const el = document.getElementById(containerId);
+        if (el) {
+            const msgText = el.querySelector('.error-msg-text');
+            if (msgText) msgText.textContent = '';
+            el.style.display = 'none';
+        }
+    }
 
-    window.confirmRemoveMember = function(id) {
-        targetMemberId = id;
-        const modal = document.getElementById('removeMemberModal');
-        if (modal) modal.classList.add('active');
-    };
-    window.closeRemoveMemberModal = function() {
-        targetMemberId = null;
-        const modal = document.getElementById('removeMemberModal');
-        if (modal) modal.classList.remove('active');
-    };
+    // Modal Handlers for Groups
+    function openCreateGroupModal() {
+        document.getElementById('new-group-name').value = '';
+        hideModalError('create-group-error');
+        toggleCustomModal('modal-create-group', true);
+    }
 
-    window.openParticipantsModal = function() {
-        if (window.partWidget) window.partWidget.reset();
-        const modal = document.getElementById('modal-manage-participants');
-        if (modal) modal.classList.add('active');
-    };
-    window.closeParticipantsModal = function() {
-        const modal = document.getElementById('modal-manage-participants');
-        if (modal) modal.classList.remove('active');
-    };
-    window.openMembersModal = function() {
-        if (window.memWidget) window.memWidget.reset();
-        const modal = document.getElementById('modal-manage-members');
-        if (modal) modal.classList.add('active');
-    };
-    window.closeMembersModal = function() {
-        const modal = document.getElementById('modal-manage-members');
-        if (modal) modal.classList.remove('active');
-    };
-    window.openQuickParticipantModal = function() {
-        const input = document.getElementById('new-participant-name-detail');
-        if (input) input.value = '';
-        const modal = document.getElementById('modal-participant-quick');
-        if (modal) modal.classList.add('active');
-    };
-    window.closeQuickParticipantModal = function() {
-        const modal = document.getElementById('modal-participant-quick');
-        if (modal) modal.classList.remove('active');
-    };
-    window.openQuickMemberModal = function() {
-        const nameInput = document.getElementById('new-member-name-detail');
-        if (nameInput) nameInput.value = '';
-        const roleInput = document.getElementById('new-member-role-detail');
-        if (roleInput) roleInput.value = '';
-        const modal = document.getElementById('modal-member-quick');
-        if (modal) modal.classList.add('active');
-    };
-    window.closeQuickMemberModal = function() {
-        const modal = document.getElementById('modal-member-quick');
-        if (modal) modal.classList.remove('active');
-    };
+    function closeCreateGroupModal() {
+        hideModalError('create-group-error');
+        toggleCustomModal('modal-create-group', false);
+    }
+
+    function viewGroupParticipants(groupId, groupName) {
+        document.getElementById('view-group-title').textContent = groupName;
+        const loading = document.getElementById('view-group-loading');
+        const emptyAlert = document.getElementById('view-group-empty');
+        const list = document.getElementById('view-group-list');
+
+        loading.style.display = 'block';
+        emptyAlert.style.display = 'none';
+        list.style.display = 'none';
+        list.innerHTML = '';
+
+        toggleCustomModal('modal-view-group', true);
+
+        fetch(`/experiment/{{ experiment.pk }}/groups/${groupId}/participants/`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            loading.style.display = 'none';
+            if (data.status === 'success') {
+                if (data.participants.length === 0) {
+                    emptyAlert.style.display = 'block';
+                } else {
+                    list.style.display = 'block';
+                    data.participants.forEach(p => {
+                        const li = document.createElement('li');
+                        li.className = 'list-group-item px-0 py-2 border-bottom';
+                        li.style.fontSize = '0.95rem';
+                        li.innerHTML = `<i class="fas fa-user me-2 text-secondary"></i>${p.name}`;
+                        list.appendChild(li);
+                    });
+                }
+            } else {
+                alert('Error: ' + data.message);
+                closeViewGroupModal();
+            }
+        })
+        .catch(err => {
+            loading.style.display = 'none';
+            alert('Error de conexión');
+            closeViewGroupModal();
+        });
+    }
+
+    function closeViewGroupModal() {
+        toggleCustomModal('modal-view-group', false);
+    }
+
+    function confirmDeleteGroup(groupId, groupName) {
+        document.getElementById('delete-group-title').textContent = groupName;
+        document.getElementById('delete-group-id-input').value = groupId;
+        hideModalError('delete-group-error');
+        toggleCustomModal('modal-delete-group', true);
+    }
+
+    function closeDeleteGroupModal() {
+        hideModalError('delete-group-error');
+        toggleCustomModal('modal-delete-group', false);
+    }
+
+    function openAssignGroupModal(participantId, currentGroupId) {
+        document.getElementById('assign-group-participant-id').value = participantId;
+        const sel = document.getElementById('assign-group-select');
+        if (sel) sel.value = currentGroupId || '';
+        hideModalError('assign-group-error');
+        toggleCustomModal('modal-assign-group', true);
+    }
+
+    function closeAssignGroupModal() {
+        hideModalError('assign-group-error');
+        toggleCustomModal('modal-assign-group', false);
+    }
+
+    // Modal Handlers for Participants and Members
+    function openParticipantsModal() {
+        document.getElementById('select-participant-id').value = '';
+        document.getElementById('select-participant-group-id').value = '';
+        hideModalError('add-participant-error');
+        toggleCustomModal('modal-manage-participants', true);
+    }
+
+    function closeParticipantsModal() {
+        hideModalError('add-participant-error');
+        toggleCustomModal('modal-manage-participants', false);
+    }
+
+    function openQuickParticipantModal() {
+        document.getElementById('new-participant-name-detail').value = '';
+        document.getElementById('new-participant-group-detail').value = '';
+        hideModalError('participant-quick-error');
+        toggleCustomModal('modal-participant-quick', true);
+    }
+
+    function closeQuickParticipantModal() {
+        hideModalError('participant-quick-error');
+        toggleCustomModal('modal-participant-quick', false);
+    }
+
+    function openMembersModal() {
+        document.getElementById('select-member-id').value = '';
+        toggleCustomModal('modal-manage-members', true);
+    }
+
+    function closeMembersModal() {
+        toggleCustomModal('modal-manage-members', false);
+    }
+
+    function openQuickMemberModal() {
+        document.getElementById('new-member-name-detail').value = '';
+        document.getElementById('new-member-role-detail').value = '';
+        hideModalError('member-quick-error');
+        toggleCustomModal('modal-member-quick', true);
+    }
+
+    function closeQuickMemberModal() {
+        hideModalError('member-quick-error');
+        toggleCustomModal('modal-member-quick', false);
+    }
+
+    function confirmRemoveParticipant(participantId) {
+        participantToRemoveId = participantId;
+        toggleCustomModal('removeParticipantModal', true);
+    }
+
+    function closeRemoveParticipantModal() {
+        participantToRemoveId = null;
+        toggleCustomModal('removeParticipantModal', false);
+    }
+
+    function confirmRemoveMember(memberId) {
+        memberToRemoveId = memberId;
+        toggleCustomModal('removeMemberModal', true);
+    }
+
+    function closeRemoveMemberModal() {
+        memberToRemoveId = null;
+        toggleCustomModal('removeMemberModal', false);
+    }
 
     document.addEventListener('DOMContentLoaded', function () {
-        const csrfTokenEl = document.querySelector('[name=csrfmiddlewaretoken]');
-        const csrfToken = csrfTokenEl ? csrfTokenEl.value : '';
+        // Description Edit Logic
+        const editBtn = document.getElementById('btn-edit-description');
+        const displayContainer = document.getElementById('description-display-container');
+        const editContainer = document.getElementById('description-edit-container');
+        const displayText = document.getElementById('description-display-text');
+        const input = document.getElementById('description-input');
+        const cancelBtn = document.getElementById('btn-cancel-edit');
+        const saveBtn = document.getElementById('btn-save-description');
 
-        window.partWidget = new DetailMultiSelect('participants-multiselect-detail');
-        window.memWidget = new DetailMultiSelect('members-multiselect-detail');
+        if (editBtn && editContainer) {
+            editBtn.addEventListener('click', () => {
+                displayContainer.style.display = 'none';
+                editContainer.style.display = 'block';
+                input.focus();
+            });
 
-        // Confirm Remove Participant Execution
-        document.getElementById('btn-confirm-remove-participant')?.addEventListener('click', () => {
-            if (!targetParticipantId) return;
+            cancelBtn.addEventListener('click', () => {
+                displayContainer.style.display = 'flex';
+                editContainer.style.display = 'none';
+                input.value = displayText.innerText;
+            });
 
-            const btn = document.getElementById('btn-confirm-remove-participant');
-            btn.disabled = true;
-            btn.textContent = 'Quitando...';
+            saveBtn.addEventListener('click', () => {
+                const newDescription = input.value;
+                saveBtn.disabled = true;
+                saveBtn.textContent = 'Guardando...';
 
-            fetch(`/experiment/{{ experiment.pk }}/remove_participant/${targetParticipantId}/`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
+                fetch("{% url 'update_experiment_description' experiment.pk %}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    body: JSON.stringify({ description: newDescription })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Guardar cambios';
+                    if (data.status === 'success') {
+                        displayText.innerText = data.description;
+                        input.value = data.description;
+                        displayContainer.style.display = 'flex';
+                        editContainer.style.display = 'none';
+                    } else {
+                        alert('Error al guardar: ' + data.message);
+                    }
+                })
+                .catch(err => {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Guardar cambios';
+                    alert('Error de conexión');
+                });
+            });
+        }
+
+        // Name Edit Logic
+        const editNameBtn = document.getElementById('btn-edit-name');
+        const nameDisplayContainer = document.getElementById('name-display-container');
+        const nameEditContainer = document.getElementById('name-edit-container');
+        const nameInput = document.getElementById('name-input');
+        const nameDisplayText = document.getElementById('name-display-text');
+        const cancelNameBtn = document.getElementById('btn-cancel-name');
+        const saveNameBtn = document.getElementById('btn-save-name');
+
+        if (editNameBtn && nameEditContainer) {
+            editNameBtn.addEventListener('click', () => {
+                nameDisplayContainer.style.display = 'none';
+                nameEditContainer.style.display = 'block';
+                nameInput.focus();
+            });
+
+            cancelNameBtn.addEventListener('click', () => {
+                nameDisplayContainer.style.display = 'flex';
+                nameEditContainer.style.display = 'none';
+                nameInput.value = nameDisplayText.innerText;
+            });
+
+            saveNameBtn.addEventListener('click', () => {
+                const newName = nameInput.value.trim();
+                if (!newName) {
+                    alert('El nombre del experimento no puede estar vacío.');
+                    return;
                 }
+                saveNameBtn.disabled = true;
+                saveNameBtn.textContent = 'Guardando...';
+
+                fetch("{% url 'update_experiment_name' experiment.pk %}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    body: JSON.stringify({ name: newName })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    saveNameBtn.disabled = false;
+                    saveNameBtn.textContent = 'Guardar cambios';
+                    if (data.status === 'success') {
+                        nameDisplayText.innerText = data.name;
+                        nameInput.value = data.name;
+                        nameDisplayContainer.style.display = 'flex';
+                        nameEditContainer.style.display = 'none';
+                    } else {
+                        alert('Error al guardar: ' + data.message);
+                    }
+                })
+                .catch(err => {
+                    saveNameBtn.disabled = false;
+                    saveNameBtn.textContent = 'Guardar cambios';
+                    alert('Error de conexión');
+                });
+            });
+        }
+
+        // Action: Create Group AJAX
+        document.getElementById('confirm-create-group-btn')?.addEventListener('click', () => {
+            const nameInput = document.getElementById('new-group-name');
+            const name = nameInput ? nameInput.value.trim() : '';
+            hideModalError('create-group-error');
+
+            if (!name) {
+                showModalError('create-group-error', 'Por favor ingresa un nombre para el grupo.');
+                return;
+            }
+
+            fetch("{% url 'create_group_ajax' experiment.pk %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ name: name })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    location.reload();
+                } else {
+                    showModalError('create-group-error', data.message);
+                }
+            })
+            .catch(err => {
+                showModalError('create-group-error', 'Error de conexión.');
+            });
+        });
+
+        // Action: Delete Group AJAX
+        document.getElementById('btn-confirm-delete-group')?.addEventListener('click', () => {
+            const groupId = document.getElementById('delete-group-id-input').value;
+            if (!groupId) return;
+
+            hideModalError('delete-group-error');
+            const btn = document.getElementById('btn-confirm-delete-group');
+            btn.disabled = true;
+            btn.textContent = 'Eliminando...';
+
+            fetch(`/experiment/{{ experiment.pk }}/groups/${groupId}/delete/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
             })
             .then(r => r.json())
             .then(data => {
                 btn.disabled = false;
-                btn.textContent = 'Quitar';
+                btn.textContent = 'Eliminar';
                 if (data.status === 'success') {
                     location.reload();
                 } else {
-                    alert('Error: ' + data.message);
+                    showModalError('delete-group-error', data.message);
                 }
             })
             .catch(err => {
-                console.error(err);
                 btn.disabled = false;
-                btn.textContent = 'Quitar';
-                alert('Error de conexión');
+                btn.textContent = 'Eliminar';
+                showModalError('delete-group-error', 'Error de conexión');
             });
         });
 
-        // Confirm Remove Member Execution
-        document.getElementById('btn-confirm-remove-member')?.addEventListener('click', () => {
-            if (!targetMemberId) return;
+        // Action: Assign / Change Group AJAX
+        document.getElementById('confirm-assign-group-btn')?.addEventListener('click', () => {
+            const participantId = document.getElementById('assign-group-participant-id').value;
+            const groupId = document.getElementById('assign-group-select').value;
+            hideModalError('assign-group-error');
 
-            const btn = document.getElementById('btn-confirm-remove-member');
-            btn.disabled = true;
-            btn.textContent = 'Quitando...';
+            if (!groupId) {
+                showModalError('assign-group-error', 'Debe seleccionar un grupo.');
+                return;
+            }
 
-            fetch(`/experiment/{{ experiment.pk }}/remove_member/${targetMemberId}/`, {
+            fetch("{% url 'assign_participant_group_ajax' experiment.pk %}", {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                }
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ participant_id: participantId, group_id: groupId })
             })
             .then(r => r.json())
             .then(data => {
-                btn.disabled = false;
-                btn.textContent = 'Quitar';
                 if (data.status === 'success') {
                     location.reload();
                 } else {
-                    alert('Error: ' + data.message);
+                    showModalError('assign-group-error', data.message);
                 }
             })
             .catch(err => {
-                console.error(err);
-                btn.disabled = false;
-                btn.textContent = 'Quitar';
-                alert('Error de conexión');
+                showModalError('assign-group-error', 'Error de conexión.');
             });
         });
 
-        function toggleCustomModal(id, show) {
-            const modal = document.getElementById(id);
-            if (modal) {
-                if (show) modal.classList.add('active');
-                else modal.classList.remove('active');
+        // Action: Add Existing Participant to Experiment + Group
+        document.getElementById('confirm-add-participants')?.addEventListener('click', () => {
+            const participantId = document.getElementById('select-participant-id').value;
+            const groupId = document.getElementById('select-participant-group-id').value;
+            hideModalError('add-participant-error');
+
+            if (!participantId) {
+                showModalError('add-participant-error', 'Por favor seleccione un participante.');
+                return;
             }
-        }
-
-        // Open Main Modals
-        document.getElementById('open-participants-modal-btn')?.addEventListener('click', () => {
-            partWidget.reset();
-            toggleCustomModal('modal-manage-participants', true);
-        });
-
-        document.getElementById('cancel-manage-participants')?.addEventListener('click', () => {
-            toggleCustomModal('modal-manage-participants', false);
-        });
-
-        document.getElementById('open-members-modal-btn')?.addEventListener('click', () => {
-            memWidget.reset();
-            toggleCustomModal('modal-manage-members', true);
-        });
-
-        document.getElementById('cancel-manage-members')?.addEventListener('click', () => {
-            toggleCustomModal('modal-manage-members', false);
-        });
-
-        function showModalError(containerId, message) {
-            const el = document.getElementById(containerId);
-            if (el) {
-                const msgText = el.querySelector('.error-msg-text');
-                if (msgText) msgText.textContent = message;
-                el.style.display = 'flex';
+            if (!groupId) {
+                showModalError('add-participant-error', 'Debe seleccionar un grupo obligatoriamente para este experimento.');
+                return;
             }
-        }
 
-        function hideModalError(containerId) {
-            const el = document.getElementById(containerId);
-            if (el) {
-                const msgText = el.querySelector('.error-msg-text');
-                if (msgText) msgText.textContent = '';
-                el.style.display = 'none';
-            }
-        }
-
-        // Trigger Sub-Modals
-        document.getElementById('trigger-create-participant')?.addEventListener('click', () => {
-            document.getElementById('new-participant-name-detail').value = '';
-            hideModalError('participant-quick-error');
-            toggleCustomModal('modal-participant-quick', true);
+            fetch("{% url 'add_participants_to_experiment' experiment.pk %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ participant_id: participantId, group_id: groupId })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    location.reload();
+                } else {
+                    showModalError('add-participant-error', data.message);
+                }
+            })
+            .catch(err => {
+                showModalError('add-participant-error', 'Error de conexión.');
+            });
         });
 
-        document.getElementById('cancel-participant-quick')?.addEventListener('click', () => {
-            hideModalError('participant-quick-error');
-            toggleCustomModal('modal-participant-quick', false);
-        });
-
-        document.getElementById('trigger-create-member')?.addEventListener('click', () => {
-            document.getElementById('new-member-name-detail').value = '';
-            document.getElementById('new-member-role-detail').value = '';
-            hideModalError('member-quick-error');
-            toggleCustomModal('modal-member-quick', true);
-        });
-
-        document.getElementById('cancel-member-quick')?.addEventListener('click', () => {
-            hideModalError('member-quick-error');
-            toggleCustomModal('modal-member-quick', false);
-        });
-
-        // Quick Create Participant via AJAX
+        // Action: Quick Create Participant + Assign Group
         document.getElementById('save-participant-quick')?.addEventListener('click', () => {
             const nameInput = document.getElementById('new-participant-name-detail');
+            const groupSelect = document.getElementById('new-participant-group-detail');
             const name = nameInput ? nameInput.value.trim() : '';
+            const groupId = groupSelect ? groupSelect.value : '';
             hideModalError('participant-quick-error');
 
             if (!name) {
                 showModalError('participant-quick-error', 'Por favor ingresa un nombre.');
                 return;
             }
+            if (!groupId) {
+                showModalError('participant-quick-error', 'Debe seleccionar un grupo obligatoriamente.');
+                return;
+            }
 
             fetch("{% url 'create_participant_ajax' %}", {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
-                body: JSON.stringify({ full_name: name })
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({
+                    full_name: name,
+                    experiment_id: {{ experiment.pk }},
+                    group_id: groupId
+                })
             })
             .then(r => r.json())
             .then(data => {
                 if (data.status === 'success') {
-                    if (window.partWidget) window.partWidget.addOption(data.id.toString(), data.value, true);
-                    hideModalError('participant-quick-error');
-                    toggleCustomModal('modal-participant-quick', false);
+                    location.reload();
                 } else {
                     showModalError('participant-quick-error', data.message);
                 }
             })
             .catch(err => {
-                console.error(err);
-                showModalError('participant-quick-error', 'Error de conexión');
+                showModalError('participant-quick-error', 'Error de conexión.');
             });
         });
 
-        // Quick Create Member via AJAX
+        // Action: Confirm Add Member
+        document.getElementById('confirm-add-members')?.addEventListener('click', () => {
+            const memberId = document.getElementById('select-member-id').value;
+            if (!memberId) {
+                alert('Por favor selecciona un miembro.');
+                return;
+            }
+
+            fetch("{% url 'add_members_to_experiment' experiment.pk %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ member_ids: [memberId] })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(err => {
+                alert('Error de conexión');
+            });
+        });
+
+        // Action: Save Member Quick
         document.getElementById('save-member-quick')?.addEventListener('click', () => {
             const nameInput = document.getElementById('new-member-name-detail');
             const roleInput = document.getElementById('new-member-role-detail');
@@ -1038,43 +1076,41 @@
 
             fetch("{% url 'create_member_ajax' %}", {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
                 body: JSON.stringify({ full_name: name, role: role })
             })
             .then(r => r.json())
             .then(data => {
                 if (data.status === 'success') {
-                    if (window.memWidget) window.memWidget.addOption(data.id.toString(), data.value, true);
-                    hideModalError('member-quick-error');
-                    toggleCustomModal('modal-member-quick', false);
+                    return fetch("{% url 'add_members_to_experiment' experiment.pk %}", {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                        body: JSON.stringify({ member_ids: [data.id] })
+                    });
+                } else {
+                    throw new Error(data.message);
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    location.reload();
                 } else {
                     showModalError('member-quick-error', data.message);
                 }
             })
             .catch(err => {
-                console.error(err);
-                showModalError('member-quick-error', 'Error de conexión');
+                showModalError('member-quick-error', err.message || 'Error de conexión');
             });
         });
 
-        // Confirm Add Participants
-        document.getElementById('confirm-add-participants')?.addEventListener('click', () => {
-            const selectedIds = window.partWidget ? Array.from(window.partWidget.selectedValues) : [];
-            if (selectedIds.length === 0) {
-                alert('Por favor selecciona al menos un participante.');
-                return;
-            }
+        // Action: Confirm Remove Participant
+        document.getElementById('btn-confirm-remove-participant')?.addEventListener('click', () => {
+            if (!participantToRemoveId) return;
 
-            fetch("{% url 'add_participants_to_experiment' experiment.pk %}", {
+            fetch(`/experiment/{{ experiment.pk }}/remove_participant/${participantToRemoveId}/`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
-                body: JSON.stringify({ participant_ids: selectedIds })
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
             })
             .then(r => r.json())
             .then(data => {
@@ -1085,26 +1121,17 @@
                 }
             })
             .catch(err => {
-                console.error(err);
                 alert('Error de conexión');
             });
         });
 
-        // Confirm Add Members
-        document.getElementById('confirm-add-members')?.addEventListener('click', () => {
-            const selectedIds = window.memWidget ? Array.from(window.memWidget.selectedValues) : [];
-            if (selectedIds.length === 0) {
-                alert('Por favor selecciona al menos un miembro.');
-                return;
-            }
+        // Action: Confirm Remove Member
+        document.getElementById('btn-confirm-remove-member')?.addEventListener('click', () => {
+            if (!memberToRemoveId) return;
 
-            fetch("{% url 'add_members_to_experiment' experiment.pk %}", {
+            fetch(`/experiment/{{ experiment.pk }}/remove_member/${memberToRemoveId}/`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
-                body: JSON.stringify({ member_ids: selectedIds })
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
             })
             .then(r => r.json())
             .then(data => {
@@ -1115,11 +1142,9 @@
                 }
             })
             .catch(err => {
-                console.error(err);
                 alert('Error de conexión');
             });
         });
     });
 </script>
-
 {% endblock %}

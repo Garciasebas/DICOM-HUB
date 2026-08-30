@@ -317,7 +317,6 @@
                         </div>
                     </div>
                     {% endif %}
-
                     <form id="experiment-form" method="post" novalidate>
                         {% csrf_token %}
 
@@ -340,50 +339,6 @@
                                 <span class="char-count">0/300</span>
                             </div>
                         </div>
-
-                        <!-- Subtle Section Divider -->
-                        <div style="border-top: 1px solid #EEEEEE; margin: 1.5rem 0;"></div>
-
-                        <!-- Block 2: People Involved (50% / 50% Grid on Desktop, 100% on Mobile) -->
-                        <div class="row g-4">
-                            <div class="col-12 col-md-6">
-                                <div class="section-header-row mb-2">
-                                    <h3 style="font-size: 1.1rem; font-weight: 600; color: #000; margin-bottom: 0;">Participantes</h3>
-                                    <button type="button" id="add-participant-btn" class="btn-icon-add"
-                                        title="Crear nuevo participante">+</button>
-                                </div>
-                                <div class="custom-multiselect" id="participants-multiselect">
-                                    <div class="multiselect-container">
-                                        <div class="multiselect-tags" id="participants-tags"></div>
-                                        <input type="text" class="multiselect-search" placeholder="Buscar participantes...">
-                                    </div>
-                                    <div class="multiselect-dropdown" id="participants-dropdown"></div>
-                                    {{ form.participants }}
-                                </div>
-                                <div id="error-participants" class="invalid-feedback" style="display: {% if form.participants.errors %}block{% else %}none{% endif %}; color: #DC3545; font-size: 0.85rem; margin-top: 4px;">
-                                    {% if form.participants.errors %}{{ form.participants.errors.0 }}{% endif %}
-                                </div>
-                            </div>
-
-                            <div class="col-12 col-md-6">
-                                <div class="section-header-row mb-2">
-                                    <h3 style="font-size: 1.1rem; font-weight: 600; color: #000; margin-bottom: 0;">Miembros del Equipo</h3>
-                                    <button type="button" id="add-member-btn" class="btn-icon-add"
-                                        title="Crear nuevo miembro">+</button>
-                                </div>
-                                <div class="custom-multiselect" id="members-multiselect">
-                                    <div class="multiselect-container">
-                                        <div class="multiselect-tags" id="members-tags"></div>
-                                        <input type="text" class="multiselect-search" placeholder="Buscar miembros...">
-                                    </div>
-                                    <div class="multiselect-dropdown" id="members-dropdown"></div>
-                                    {{ form.members }}
-                                </div>
-                                <div id="error-members" class="invalid-feedback" style="display: {% if form.members.errors %}block{% else %}none{% endif %}; color: #DC3545; font-size: 0.85rem; margin-top: 4px;">
-                                    {% if form.members.errors %}{{ form.members.errors.0 }}{% endif %}
-                                </div>
-                            </div>
-                        </div>
                     </form>
                 </div>
             </div>
@@ -398,126 +353,7 @@
     }
 </style>
 
-<!-- Modal Create Participant -->
-<div id="modal-participant" class="modal-overlay">
-    <div class="modal-card">
-        <h3 class="modal-title">Nuevo Participante</h3>
-        <input type="text" id="new-participant-name" class="modal-input" placeholder="Nombre y Apellido">
-        <div id="participant-form-error" class="modal-error-alert" style="display: none;">
-            <i class="fas fa-exclamation-triangle me-1"></i>
-            <span class="error-msg-text"></span>
-        </div>
-        <div class="modal-actions">
-            <button type="button" id="cancel-participant" class="btn-cancel-outline">Cancelar</button>
-            <button type="button" id="save-participant" class="btn-save-teal">Confirmar</button>
-        </div>
-    </div>
-</div>
-
-<!-- Modal Create Member -->
-<div id="modal-member" class="modal-overlay">
-    <div class="modal-card">
-        <h3 class="modal-title">Nuevo Miembro</h3>
-        <input type="text" id="new-member-name" class="modal-input" placeholder="Nombre y Apellido">
-        <select id="new-member-role" class="modal-input">
-            <option value="">Seleccionar Rol</option>
-            <option value="Líder Científico/a">Líder Científico/a</option>
-            <option value="Co-investigador/a">Co-investigador/a</option>
-            <option value="Investigador/a Posdoctoral">Investigador/a Posdoctoral</option>
-            <option value="Coordinador/a de Investigación">Coordinador/a de Investigación</option>
-            <option value="Coordinador/a Clínico">Coordinador/a Clínico</option>
-            <option value="Neurólogo/a">Neurólogo/a</option>
-            <option value="Técnico/a en Neuroimagen">Técnico/a en Neuroimagen</option>
-            <option value="Ingeniero/a Biomédico/a">Ingeniero/a Biomédico/a</option>
-            <option value="Especialista en Procesamiento de Imágenes">Especialista en Procesamiento de Imágenes</option>
-            <option value="Asistente de Investigación">Asistente de Investigación</option>
-            <option value="Bioestadístico/a o Científico/a de Datos">Bioestadístico/a o Científico/a de Datos</option>
-        </select>
-        <div id="member-form-error" class="modal-error-alert" style="display: none;">
-            <i class="fas fa-exclamation-triangle me-1"></i>
-            <span class="error-msg-text"></span>
-        </div>
-        <div class="modal-actions">
-            <button type="button" id="cancel-member" class="btn-cancel-outline">Cancelar</button>
-            <button type="button" id="save-member" class="btn-save-teal">Confirmar</button>
-        </div>
-    </div>
-</div>
-
 <script>
-    // Custom Multi-Select Component
-    class CustomMultiSelect {
-        constructor(containerId, selectElement) {
-            this.container = document.getElementById(containerId);
-            this.select = selectElement;
-            this.searchInput = this.container.querySelector('.multiselect-search');
-            this.dropdown = this.container.querySelector('.multiselect-dropdown');
-            this.tagsContainer = this.container.querySelector('.multiselect-tags');
-            this.multiselectContainer = this.container.querySelector('.multiselect-container');
-            this.selectedValues = new Set();
-
-            this.init();
-        }
-
-        init() {
-            // Hide original select
-            this.select.style.display = 'none';
-
-            // Build dropdown options
-            this.buildDropdown();
-
-            // Event listeners
-            this.searchInput.addEventListener('input', () => this.filterOptions());
-            this.searchInput.addEventListener('focus', () => this.openDropdown());
-            this.multiselectContainer.addEventListener('click', () => this.searchInput.focus());
-
-            // Close dropdown when clicking outside
-            document.addEventListener('click', (e) => {
-                if (!this.container.contains(e.target)) {
-                    this.closeDropdown();
-                }
-            });
-        }
-
-        buildDropdown() {
-            this.dropdown.innerHTML = '';
-            const options = this.select.querySelectorAll('option');
-
-            options.forEach(option => {
-                const div = document.createElement('div');
-                div.className = 'multiselect-option';
-                div.textContent = option.textContent;
-                div.dataset.value = option.value;
-
-                div.addEventListener('click', () => this.toggleOption(option.value, option.textContent));
-
-                this.dropdown.appendChild(div);
-            });
-        }
-
-        toggleOption(value, text) {
-            if (this.selectedValues.has(value)) {
-                this.removeValue(value);
-            } else {
-                this.addValue(value, text);
-            }
-            this.updateSelect();
-            this.updateDropdownState();
-        }
-
-        addValue(value, text) {
-            this.selectedValues.add(value);
-
-            const tag = document.createElement('div');
-            tag.className = 'multiselect-tag';
-            tag.dataset.value = value;
-            tag.innerHTML = `
-            <span>${text}</span>
-            <span class="multiselect-tag-remove">×</span>
-        `;
-
-            tag.querySelector('.multiselect-tag-remove').addEventListener('click', (e) => {
-                e.stopPropagation();
                 this.removeValue(value);
                 this.updateSelect();
                 this.updateDropdownState();

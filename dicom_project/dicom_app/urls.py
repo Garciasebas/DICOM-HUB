@@ -23,7 +23,11 @@ from .views import (
     add_participants_to_experiment,
     add_members_to_experiment,
     remove_participant_from_experiment,
-    remove_member_from_experiment
+    remove_member_from_experiment,
+    create_group_ajax,
+    assign_participant_group_ajax,
+    get_group_participants_ajax,
+    delete_group_ajax
 )
 
 from django.views.generic import RedirectView
@@ -59,6 +63,10 @@ urlpatterns = [
     path('ajax/member/create/', create_member_ajax, name='create_member_ajax'),
     path('experiment/<int:pk>/update_description/', update_experiment_description, name='update_experiment_description'),
     path('experiment/<int:pk>/update_name/', update_experiment_name, name='update_experiment_name'),
+    path('experiment/<int:pk>/groups/create/', create_group_ajax, name='create_group_ajax'),
+    path('experiment/<int:pk>/groups/<int:group_id>/participants/', get_group_participants_ajax, name='get_group_participants_ajax'),
+    path('experiment/<int:pk>/groups/<int:group_id>/delete/', delete_group_ajax, name='delete_group_ajax'),
+    path('experiment/<int:pk>/assign_group/', assign_participant_group_ajax, name='assign_participant_group_ajax'),
     path('experiment/<int:pk>/add_participants/', add_participants_to_experiment, name='add_participants_to_experiment'),
     path('experiment/<int:pk>/add_members/', add_members_to_experiment, name='add_members_to_experiment'),
     path('experiment/<int:pk>/remove_participant/<int:participant_id>/', remove_participant_from_experiment, name='remove_participant_from_experiment'),
