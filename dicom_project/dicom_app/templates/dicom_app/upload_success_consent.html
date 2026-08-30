@@ -16,7 +16,7 @@
                 <ol class="breadcrumb breadcrumb-custom">
                     <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="breadcrumb-link">Listado de Experimentos</a></li>
                     <li class="breadcrumb-item"><a href="{% url 'experiment_detail' experiment.pk %}" class="breadcrumb-link">Detalle del Experimento</a></li>
-                    <li class="breadcrumb-item"><a href="{% url 'upload_consent_note' experiment.pk participant.pk %}" class="breadcrumb-link">Subir Nota de Consentimiento</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'participant_experiment_dicoms' participant.pk experiment.pk %}" class="breadcrumb-link">Datos del Participante</a></li>
                     <li class="breadcrumb-item active" aria-current="page">Operación Exitosa</li>
                 </ol>
             </nav>
@@ -29,8 +29,8 @@
             <div class="card border-0 shadow-sm" style="border-radius: 20px; padding: 2rem;">
                 <div class="card-body p-0 text-center">
                     <div class="success-header">
-                        <h1 class="success-title">¡Nota de Consentimiento subido exitosamente!</h1>
-                        <a href="{% url 'experiment_detail' experiment.pk %}" class="btn-cancel-outline">Volver al Detalle del Experimento</a>
+                        <h1 class="success-title">¡Nota de consentimiento subida exitosamente!</h1>
+                        <a href="{% url 'participant_experiment_dicoms' participant.pk experiment.pk %}" class="btn-cancel-outline">Volver a Datos del Participante</a>
                     </div>
                 </div>
             </div>

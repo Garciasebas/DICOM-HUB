@@ -55,9 +55,8 @@ class NavigationAndValidationTestCase(TestCase):
         res_exp_detail = self.client.get(url_exp_detail)
         self.assertEqual(res_exp_detail.status_code, 200)
 
-        url_part_experiments = reverse('participant_experiments', kwargs={'participant_id': self.participant.pk})
-        expected_part_link = f'{url_part_experiments}?from_experiment={self.experiment_origin.pk}'
-        self.assertIn(expected_part_link, res_exp_detail.content.decode('utf-8'))
+        url_part_dicoms = reverse('participant_experiment_dicoms', kwargs={'participant_id': self.participant.pk, 'experiment_id': self.experiment_origin.pk})
+        self.assertIn(url_part_dicoms, res_exp_detail.content.decode('utf-8'))
 
     def test_02_participant_experiments_search_with_from_experiment(self):
         url_part_experiments = reverse('participant_experiments', kwargs={'participant_id': self.participant.pk})

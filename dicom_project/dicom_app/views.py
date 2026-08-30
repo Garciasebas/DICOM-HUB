@@ -661,25 +661,37 @@ def participant_experiments(request, participant_id):
 @login_required
 def participant_experiment_dicoms(request, participant_id, experiment_id):
     """
-    Muestra todos los archivos DICOM de un participante para un experimento específico
+    Muestra los Datos del Participante dentro del contexto de un experimento específico.
     """
     participant = get_object_or_404(get_user_participants(request.user), pk=participant_id)
     experiment = get_object_or_404(get_user_experiments(request.user), pk=experiment_id)
+
+    ep = ExperimentParticipant.objects.filter(experiment=experiment, participant=participant).select_related('group').first()
+    if not ep and not experiment.participants.filter(pk=participant.pk).exists():
+        raise Http404("El participante no pertenece a este experimento.")
+
+    group = ep.group if ep else None
+
+    consent_file = ConsentFile.objects.filter(
+        participant=participant,
+        experiment=experiment
+    ).order_by('-upload_date').first()
+
+    dicom_files = get_user_dicom_files(request.user).filter(
+        participant=participant,
+        experiment=experiment
+    ).order_by('-upload_date')
 
     from_experiment_id = request.GET.get('from_experiment')
     from_experiment = None
     if from_experiment_id:
         from_experiment = get_user_experiments(request.user).filter(pk=from_experiment_id).first()
 
-    # Obtener todos los DICOM files del participante para este experimento
-    dicom_files = get_user_dicom_files(request.user).filter(
-        participant=participant,
-        experiment=experiment
-    ).order_by('-upload_date')
-
     return render(request, 'dicom_app/participant_experiment_dicoms.html', {
         'participant': participant,
         'experiment': experiment,
+        'group': group,
+        'consent_file': consent_file,
         'dicom_files': dicom_files,
         'from_experiment': from_experiment,
     })
@@ -940,6 +952,75 @@ def create_participant_ajax(request):
             'id': participant.id,
             'value': f"{participant.first_name} {participant.last_name}".strip(),
             'group_name': group.name if group else None
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@require_POST
+@login_required
+def update_participant_demographics_ajax(request, participant_id):
+    try:
+        participant = get_object_or_404(get_user_participants(request.user), pk=participant_id)
+        data = json.loads(request.body)
+
+        first_name = data.get('first_name')
+        last_name = data.get('last_name')
+
+        if first_name is not None:
+            first_name_clean = " ".join(str(first_name).split()).title()
+            if not first_name_clean:
+                return JsonResponse({'status': 'error', 'message': 'El nombre no puede estar vacío.'}, status=400)
+        else:
+            first_name_clean = participant.first_name
+
+        if last_name is not None:
+            last_name_clean = " ".join(str(last_name).split()).title()
+        else:
+            last_name_clean = participant.last_name
+
+        duplicate = get_user_participants(request.user).filter(
+            first_name__iexact=first_name_clean,
+            last_name__iexact=last_name_clean
+        ).exclude(pk=participant.pk).first()
+
+        if duplicate:
+            full_dup_name = f"{duplicate.first_name} {duplicate.last_name}".strip()
+            return JsonResponse({
+                'status': 'error',
+                'message': f"Ya existe un participante registrado con el nombre '{full_dup_name}'."
+            }, status=400)
+
+        participant.first_name = first_name_clean
+        participant.last_name = last_name_clean
+
+        birth_date = data.get('birth_date')
+        if birth_date is not None:
+            if not birth_date or not str(birth_date).strip():
+                participant.birth_date = None
+            else:
+                from datetime import datetime
+                participant.birth_date = datetime.strptime(str(birth_date).strip(), '%Y-%m-%d').date()
+
+        sex = data.get('sex')
+        if sex is not None:
+            if not sex or not str(sex).strip():
+                participant.sex = None
+            else:
+                sex_clean = str(sex).strip().upper()
+                if sex_clean not in [c[0] for c in Participant.SEX_CHOICES]:
+                    return JsonResponse({'status': 'error', 'message': 'Opción de sexo inválida.'}, status=400)
+                participant.sex = sex_clean
+
+        participant.save()
+
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Datos del participante actualizados correctamente.',
+            'first_name': participant.first_name,
+            'last_name': participant.last_name,
+            'birth_date': participant.birth_date.strftime('%Y-%m-%d') if participant.birth_date else None,
+            'sex': participant.sex,
+            'sex_display': participant.get_sex_display() if participant.sex else 'No especificado'
         })
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)

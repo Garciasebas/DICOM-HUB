@@ -27,7 +27,8 @@ from .views import (
     create_group_ajax,
     assign_participant_group_ajax,
     get_group_participants_ajax,
-    delete_group_ajax
+    delete_group_ajax,
+    update_participant_demographics_ajax
 )
 
 from django.views.generic import RedirectView
@@ -61,6 +62,7 @@ urlpatterns = [
     # AJAX URLs
     path('ajax/participant/create/', create_participant_ajax, name='create_participant_ajax'),
     path('ajax/member/create/', create_member_ajax, name='create_member_ajax'),
+    path('participant/<int:participant_id>/update_demographics/', update_participant_demographics_ajax, name='update_participant_demographics_ajax'),
     path('experiment/<int:pk>/update_description/', update_experiment_description, name='update_experiment_description'),
     path('experiment/<int:pk>/update_name/', update_experiment_name, name='update_experiment_name'),
     path('experiment/<int:pk>/groups/create/', create_group_ajax, name='create_group_ajax'),

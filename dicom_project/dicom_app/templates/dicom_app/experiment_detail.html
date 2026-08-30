@@ -110,17 +110,15 @@
                         <button type="button" id="open-participants-modal-btn" onclick="openParticipantsModal()" class="btn-icon-add" title="Agregar o crear participante">+</button>
                     </div>
                     <div class="participants-table" style="background: white; border-radius: 12px; border: 1px solid #E2E8F0; overflow: hidden;">
-                        <div class="participant-table-header" style="display: grid; grid-template-columns: 2fr 1.5fr 2fr 1.5fr 40px; align-items: center; gap: 1rem; padding: 0.75rem 1rem; background: #F1F5F9; font-weight: 700; font-size: 0.85rem; color: #475569; text-transform: uppercase;">
+                        <div class="participant-table-header" style="display: grid; grid-template-columns: 2fr 1.5fr 40px; align-items: center; gap: 1rem; padding: 0.75rem 1rem; background: #F1F5F9; font-weight: 700; font-size: 0.85rem; color: #475569; text-transform: uppercase;">
                             <div>Participante</div>
                             <div>Grupo</div>
-                            <div>Consentimiento</div>
-                            <div>DICOM</div>
-                            <div class="text-end">Acciones</div>
+                            <div class="text-end"></div>
                         </div>
                         {% for ep in experiment_participants %}
-                        <div class="participant-row-detail" style="display: grid; grid-template-columns: 2fr 1.5fr 2fr 1.5fr 40px; align-items: center; gap: 1rem; padding: 0.75rem 1rem; border-bottom: 1px solid #E2E8F0;">
+                        <div class="participant-row-detail" style="display: grid; grid-template-columns: 2fr 1.5fr 40px; align-items: center; gap: 1rem; padding: 0.75rem 1rem; border-bottom: 1px solid #E2E8F0;">
                             <div class="participant-name-bold" title="{{ ep.participant.first_name }} {{ ep.participant.last_name }}">
-                                <a href="{% url 'participant_experiments' ep.participant.pk %}?from_experiment={{ experiment.pk }}" class="participant-name-link">
+                                <a href="{% url 'participant_experiment_dicoms' ep.participant.pk experiment.pk %}" class="participant-name-link">
                                     {{ ep.participant.first_name }} {{ ep.participant.last_name }}
                                 </a>
                             </div>
@@ -134,14 +132,8 @@
                                     <i class="fas fa-pen"></i> Cambiar
                                 </button>
                             </div>
-                            <div class="participant-action-col">
-                                <a href="{% url 'upload_consent_note' experiment.pk ep.participant.pk %}" class="link-blue">Subir nota de consentimiento</a>
-                            </div>
-                            <div class="participant-action-col">
-                                <a href="{% url 'upload_participant_dicom' experiment.pk ep.participant.pk %}" class="link-blue">Subir DICOM</a>
-                            </div>
                             <div class="participant-action-col action-col-x text-end">
-                                <button type="button" class="btn-remove-x" onclick="confirmRemoveParticipant('{{ ep.participant.pk }}')" title="Quitar participante del experimento">X</button>
+                                <button type="button" class="btn-remove-x" onclick="confirmRemoveParticipant('{{ ep.participant.pk }}')" title="Eliminar participante del experimento">X</button>
                             </div>
                         </div>
                         {% empty %}

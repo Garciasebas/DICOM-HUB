@@ -18,9 +18,17 @@ class Experiment(models.Model):
         return self.name
 
 class Participant(models.Model):
+    SEX_CHOICES = (
+        ('M', 'Masculino'),
+        ('F', 'Femenino'),
+        ('O', 'Otro'),
+    )
+
     subject_id = models.CharField(max_length=100, unique=True)
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
+    birth_date = models.DateField(null=True, blank=True, verbose_name="Fecha de nacimiento")
+    sex = models.CharField(max_length=1, choices=SEX_CHOICES, null=True, blank=True, verbose_name="Sexo")
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=20, blank=True)
     details = models.TextField(blank=True)

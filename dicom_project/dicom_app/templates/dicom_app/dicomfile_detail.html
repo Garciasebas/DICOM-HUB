@@ -17,7 +17,7 @@
                     {% if dicom_file.participant and dicom_file.experiment %}
                     <li class="breadcrumb-item"><a href="{% url 'participant_list' %}" class="breadcrumb-link">Participantes</a></li>
                     <li class="breadcrumb-item"><a href="{% url 'participant_experiments' dicom_file.participant.pk %}" class="breadcrumb-link">Experimentos del Participante</a></li>
-                    <li class="breadcrumb-item"><a href="{% url 'participant_experiment_dicoms' dicom_file.participant.pk dicom_file.experiment.pk %}" class="breadcrumb-link">Archivos DICOM</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'participant_experiment_dicoms' dicom_file.participant.pk dicom_file.experiment.pk %}" class="breadcrumb-link">Datos del Participante</a></li>
                     {% elif dicom_file.participant %}
                     <li class="breadcrumb-item"><a href="{% url 'participant_list' %}" class="breadcrumb-link">Participantes</a></li>
                     <li class="breadcrumb-item"><a href="{% url 'participant_experiments' dicom_file.participant.pk %}" class="breadcrumb-link">Experimentos del Participante</a></li>

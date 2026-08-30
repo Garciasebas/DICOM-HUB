@@ -47,6 +47,23 @@ class ExperimentForm(forms.ModelForm):
             raise forms.ValidationError("La descripción del experimento no puede superar los 300 caracteres.")
         return description.strip()
 
+class ParticipantForm(forms.ModelForm):
+    class Meta:
+        model = Participant
+        fields = ['first_name', 'last_name', 'birth_date', 'sex']
+        labels = {
+            'first_name': 'Nombre',
+            'last_name': 'Apellido',
+            'birth_date': 'Fecha de Nacimiento',
+            'sex': 'Sexo',
+        }
+        widgets = {
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'birth_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'sex': forms.Select(attrs={'class': 'form-select'}),
+        }
+
 class DicomFileForm(forms.ModelForm):
     class Meta:
         model = DicomFile

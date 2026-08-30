@@ -15,90 +15,159 @@
         <div class="col-12 col-xl-10">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb breadcrumb-custom">
-                    {% if from_experiment %}
-                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="breadcrumb-link">Experimentos</a></li>
-                    <li class="breadcrumb-item"><a href="{% url 'experiment_detail' from_experiment.pk %}" class="breadcrumb-link">{{ from_experiment.name }}</a></li>
-                    <li class="breadcrumb-item"><a href="{% url 'participant_experiments' participant.pk %}?from_experiment={{ from_experiment.pk }}" class="breadcrumb-link">Experimentos del Participante</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">Archivos DICOM</li>
-                    {% else %}
-                    <li class="breadcrumb-item"><a href="{% url 'participant_list' %}" class="breadcrumb-link">Participantes</a></li>
-                    <li class="breadcrumb-item"><a href="{% url 'participant_experiments' participant.pk %}" class="breadcrumb-link">Experimentos del Participante</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">Archivos DICOM</li>
-                    {% endif %}
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="breadcrumb-link">Listado de Experimentos</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'experiment_detail' experiment.pk %}" class="breadcrumb-link">Detalle del Experimento</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Datos del Participante</li>
                 </ol>
             </nav>
         </div>
     </div>
 
     <!-- Main Card -->
-    <div class="row justify-content-center px-4">
+    <div class="row justify-content-center px-4 mb-5">
         <div class="col-12 col-xl-10">
             <div class="card border-0 shadow-sm" style="border-radius: 20px; padding: 2rem;">
                 <div class="card-body p-0">
-                    <!-- Card Title and Back Button -->
-                    <div class="d-flex justify-content-between align-items-start mb-4">
+                    <!-- Title and Metadata Header -->
+                    <div class="d-flex justify-content-between align-items-start mb-4 pb-3 border-bottom">
                         <div>
-                            <h2 class="mb-1" style="font-weight: 700; font-size: 2rem; color: #000;">
-                                Archivos DICOM
+                            <h2 class="mb-2" style="font-weight: 800; font-size: 2rem; color: #000;">
+                                Datos del Participante
                             </h2>
-                            <p class="text-muted mb-0" style="font-size: 0.9rem;">
-                                Participante: {{ participant.first_name }} {{ participant.last_name }}
+                            <p class="mb-1" style="font-size: 1rem; color: #334155;">
+                                <strong>Experimento:</strong> {{ experiment.name }}
                             </p>
-                            <p class="text-muted mb-0" style="font-size: 0.9rem;">
-                                Experimento: {{ experiment.name }}
+                            <p class="mb-0" style="font-size: 1rem; color: #334155;">
+                                <strong>Grupo:</strong>
+                                {% if group %}
+                                <span class="badge" style="background-color: #2B7A9B; font-size: 0.9rem; font-weight: 600; padding: 5px 12px; border-radius: 12px;">{{ group.name }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary text-white" style="font-size: 0.9rem; padding: 5px 12px; border-radius: 12px;">Sin grupo</span>
+                                {% endif %}
                             </p>
                         </div>
-                        <a href="{% url 'participant_experiments' participant.pk %}{% if from_experiment %}?from_experiment={{ from_experiment.pk }}{% endif %}" class="btn btn-outline-secondary"
-                            style="border-radius: 8px; padding: 0.5rem 1.5rem; font-size: 0.9rem;">
+                        <a href="{% url 'experiment_detail' experiment.pk %}" class="btn btn-outline-secondary"
+                            style="border-radius: 8px; padding: 0.5rem 1.5rem; font-size: 0.9rem; font-weight: 500;">
                             ← Atrás
                         </a>
                     </div>
 
-                    <!-- Table -->
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle">
-                            <thead>
-                                <tr style="border-bottom: 2px solid #eee;">
-                                    <th scope="col" class="pb-3" style="font-weight: 800; color: #000;">Nombre del
-                                        archivo</th>
-                                    <th scope="col" class="pb-3" style="font-weight: 800; color: #000;">Fecha de subida
-                                    </th>
-                                    <th scope="col" class="pb-3" style="font-weight: 800; color: #000;">Tamaño</th>
-                                    <th scope="col" class="pb-3" style="font-weight: 800; color: #000;">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for dicom_file in dicom_files %}
-                                <tr style="border-bottom: 1px solid #f0f0f0;">
-                                    <td class="py-3" style="color: #555; font-weight: 500;">
-                                        {{ dicom_file.original_filename|default:dicom_file.patient_name }}
-                                    </td>
-                                    <td class="py-3" style="color: #555;">
-                                        {{ dicom_file.upload_date|date:"Y-m-d H:i" }}
-                                    </td>
-                                    <td class="py-3" style="color: #555;">
-                                        {% if dicom_file.file_size %}
-                                        {{ dicom_file.file_size|filesizeformat }}
-                                        {% else %}
-                                        N/A
-                                        {% endif %}
-                                    </td>
-                                    <td class="py-3">
-                                        <a href="{% url 'dicomfile_detail' dicom_file.pk %}"
-                                            style="color: #4A90E2; text-decoration: none; font-weight: 500;">
-                                            Detalles
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="4" class="text-center py-4">
-                                        No hay archivos DICOM para este participante en este experimento.
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                    <!-- Section 1: Información del participante -->
+                    <div class="mb-4 p-4" style="background-color: #F8FAFC; border-radius: 14px; border: 1px solid #E2E8F0;">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h3 class="m-0" style="font-size: 1.2rem; font-weight: 700; color: #1E293B;">
+                                <i class="fas fa-id-card me-2" style="color: #2B7A9B;"></i>Información del Participante
+                            </h3>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="openEditDemographicsModal()" style="border-radius: 6px; font-weight: 500;">
+                                <i class="fas fa-pen me-1"></i>Editar
+                            </button>
+                        </div>
+                        <div class="row g-3" style="font-size: 0.95rem; color: #475569;">
+                            <div class="col-12 col-md-6">
+                                <strong>Nombre:</strong> <span id="display-first-name">{{ participant.first_name }}</span>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <strong>Fecha de nacimiento:</strong> <span id="display-birth-date">{{ participant.birth_date|date:"Y-m-d"|default:"No especificada" }}</span>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <strong>Apellido:</strong> <span id="display-last-name">{{ participant.last_name }}</span>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <strong>Sexo:</strong> <span id="display-sex">{{ participant.get_sex_display|default:"No especificado" }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Nota de consentimiento -->
+                    <div class="mb-4 p-4" style="background-color: #F8FAFC; border-radius: 14px; border: 1px solid #E2E8F0;">
+                        <h3 class="mb-3" style="font-size: 1.2rem; font-weight: 700; color: #1E293B;">
+                            <i class="fas fa-file-contract me-2" style="color: #2B7A9B;"></i>Nota de Consentimiento
+                        </h3>
+                        {% if consent_file %}
+                        <div class="d-flex align-items-center justify-content-between p-3" style="background-color: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 10px;">
+                            <div>
+                                <div style="color: #166534; font-weight: 600; font-size: 0.95rem;" class="mb-1">
+                                    <i class="fas fa-check-circle me-1"></i>Nota de consentimiento cargada
+                                </div>
+                                <div style="color: #374151; font-size: 0.85rem;">
+                                    {{ consent_file.original_filename|default:"nota_consentimiento.pdf" }} ({{ consent_file.upload_date|date:"Y-m-d H:i" }})
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'view_consent_note' participant.pk experiment.pk %}" target="_blank" class="btn btn-sm btn-outline-primary" style="border-radius: 6px; font-weight: 500;">
+                                    <i class="fas fa-eye me-1"></i>Ver
+                                </a>
+                                <a href="{% url 'upload_consent_note' experiment.pk participant.pk %}" class="btn btn-sm btn-outline-secondary" style="border-radius: 6px; font-weight: 500;">
+                                    <i class="fas fa-sync-alt me-1"></i>Reemplazar
+                                </a>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="d-flex align-items-center justify-content-between p-3" style="background-color: #FEF2F2; border: 1px solid #FECACA; border-radius: 10px;">
+                            <div style="color: #991B1B; font-size: 0.95rem; font-weight: 500;">
+                                <i class="fas fa-exclamation-triangle me-2"></i>No se ha cargado una nota de consentimiento.
+                            </div>
+                            <a href="{% url 'upload_consent_note' experiment.pk participant.pk %}" class="btn btn-sm" style="background-color: #2B7A9B; color: white; border-radius: 6px; font-weight: 600;">
+                                Subir nota de consentimiento
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Section 3: Archivos DICOM -->
+                    <div class="p-4" style="background-color: #F8FAFC; border-radius: 14px; border: 1px solid #E2E8F0;">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <h3 class="m-0" style="font-size: 1.2rem; font-weight: 700; color: #1E293B;">
+                                <i class="fas fa-x-ray me-2" style="color: #2B7A9B;"></i>Archivos DICOM
+                            </h3>
+                            <a href="{% url 'upload_participant_dicom' experiment.pk participant.pk %}" class="btn btn-sm" style="background-color: #2B7A9B; color: white; border-radius: 6px; font-weight: 600; padding: 6px 14px;">
+                                + Subir DICOM
+                            </a>
+                        </div>
+
+                        <div class="table-responsive bg-white" style="border-radius: 10px; border: 1px solid #E2E8F0;">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead>
+                                    <tr style="background-color: #F1F5F9; font-size: 0.85rem; text-transform: uppercase; color: #475569;">
+                                        <th scope="col" class="py-3 px-3" style="font-weight: 700;">Nombre del archivo</th>
+                                        <th scope="col" class="py-3 px-3" style="font-weight: 700;">Fecha de subida</th>
+                                        <th scope="col" class="py-3 px-3" style="font-weight: 700;">Tamaño</th>
+                                        <th scope="col" class="py-3 px-3 text-end" style="font-weight: 700;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for dicom_file in dicom_files %}
+                                    <tr style="border-bottom: 1px solid #f0f0f0; font-size: 0.9rem;">
+                                        <td class="py-3 px-3" style="color: #334155; font-weight: 500;">
+                                            {{ dicom_file.original_filename|default:dicom_file.patient_name }}
+                                        </td>
+                                        <td class="py-3 px-3" style="color: #64748B;">
+                                            {{ dicom_file.upload_date|date:"Y-m-d H:i" }}
+                                        </td>
+                                        <td class="py-3 px-3" style="color: #64748B;">
+                                            {% if dicom_file.file_size %}
+                                            {{ dicom_file.file_size|filesizeformat }}
+                                            {% else %}
+                                            N/A
+                                            {% endif %}
+                                        </td>
+                                        <td class="py-3 px-3 text-end">
+                                            <a href="{% url 'dicomfile_detail' dicom_file.pk %}"
+                                                style="color: #2B7A9B; text-decoration: none; font-weight: 600;">
+                                                Detalles
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4 text-muted" style="font-size: 0.9rem;">
+                                            No hay archivos DICOM para este participante en este experimento.
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                 </div>
@@ -107,8 +176,43 @@
     </div>
 </div>
 
+<!-- Modal Editar Datos Demográficos -->
+<div id="modal-edit-demographics" class="modal-overlay-custom">
+    <div class="modal-card-custom" style="max-width: 440px;">
+        <h3 class="modal-title mb-3" style="font-size: 1.2rem; font-weight: 700; color: #000;">Editar Información del Participante</h3>
+        <div class="mb-3">
+            <label class="form-label" style="font-weight: 600;">Nombre</label>
+            <input type="text" id="edit-first-name" class="form-control" value="{{ participant.first_name }}">
+        </div>
+        <div class="mb-3">
+            <label class="form-label" style="font-weight: 600;">Apellido</label>
+            <input type="text" id="edit-last-name" class="form-control" value="{{ participant.last_name }}">
+        </div>
+        <div class="mb-3">
+            <label class="form-label" style="font-weight: 600;">Fecha de Nacimiento</label>
+            <input type="date" id="edit-birth-date" class="form-control" value="{{ participant.birth_date|date:'Y-m-d' }}">
+        </div>
+        <div class="mb-3">
+            <label class="form-label" style="font-weight: 600;">Sexo</label>
+            <select id="edit-sex" class="form-select">
+                <option value="">-- No especificado --</option>
+                <option value="M" {% if participant.sex == 'M' %}selected{% endif %}>Masculino</option>
+                <option value="F" {% if participant.sex == 'F' %}selected{% endif %}>Femenino</option>
+                <option value="O" {% if participant.sex == 'O' %}selected{% endif %}>Otro</option>
+            </select>
+        </div>
+        <div id="edit-demographics-error" class="modal-error-alert" style="display: none; color: #991B1B; background: #FEE2E2; border: 1px solid #FCA5A5; padding: 0.5rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 1rem;">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            <span class="error-msg-text"></span>
+        </div>
+        <div class="d-flex justify-content-end gap-2">
+            <button type="button" onclick="closeEditDemographicsModal()" class="btn btn-outline-secondary" style="border-radius: 8px; padding: 0.4rem 1.2rem; font-size: 0.9rem;">Cancelar</button>
+            <button type="button" id="confirm-edit-demographics-btn" class="btn" style="background-color: #1E6091; color: #fff; font-weight: 600; border-radius: 8px; padding: 0.4rem 1.4rem; font-size: 0.9rem;">Guardar</button>
+        </div>
+    </div>
+</div>
+
 <style>
-    /* Custom overrides for this specific page */
     .content-area {
         background-color: #E6F0FF !important;
         padding: 0 !important;
@@ -123,18 +227,111 @@
     }
 
     .btn-outline-secondary {
-        border-color: #ddd;
-        color: #666;
+        border-color: #cbd5e1;
+        color: #475569;
     }
 
     .btn-outline-secondary:hover {
-        background-color: #f8f9fa;
-        border-color: #ccc;
-        color: #333;
+        background-color: #f1f5f9;
+        border-color: #94a3b8;
+        color: #1e293b;
     }
 
-    .btn-primary:hover {
-        background-color: #4A6FE8;
+    .modal-overlay-custom {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.2s;
+    }
+
+    .modal-overlay-custom.active {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .modal-card-custom {
+        background: white;
+        padding: 24px;
+        border-radius: 16px;
+        width: 100%;
+        max-width: 500px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        transform: scale(0.95);
+        transition: transform 0.2s;
+    }
+
+    .modal-overlay-custom.active .modal-card-custom {
+        transform: scale(1);
     }
 </style>
+
+<script>
+    const csrfToken = '{{ csrf_token }}';
+
+    function toggleCustomModal(id, show) {
+        const modal = document.getElementById(id);
+        if (modal) {
+            if (show) modal.classList.add('active');
+            else modal.classList.remove('active');
+        }
+    }
+
+    function openEditDemographicsModal() {
+        toggleCustomModal('modal-edit-demographics', true);
+    }
+
+    function closeEditDemographicsModal() {
+        toggleCustomModal('modal-edit-demographics', false);
+    }
+
+    document.getElementById('confirm-edit-demographics-btn')?.addEventListener('click', () => {
+        const firstName = document.getElementById('edit-first-name').value;
+        const lastName = document.getElementById('edit-last-name').value;
+        const birthDate = document.getElementById('edit-birth-date').value;
+        const sex = document.getElementById('edit-sex').value;
+        const errDiv = document.getElementById('edit-demographics-error');
+
+        errDiv.style.display = 'none';
+
+        fetch("{% url 'update_participant_demographics_ajax' participant.pk %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                first_name: firstName,
+                last_name: lastName,
+                birth_date: birthDate,
+                sex: sex
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                document.getElementById('display-first-name').textContent = data.first_name;
+                document.getElementById('display-last-name').textContent = data.last_name;
+                document.getElementById('display-birth-date').textContent = data.birth_date || 'No especificada';
+                document.getElementById('display-sex').textContent = data.sex_display || 'No especificado';
+                closeEditDemographicsModal();
+            } else {
+                errDiv.querySelector('.error-msg-text').textContent = data.message;
+                errDiv.style.display = 'block';
+            }
+        })
+        .catch(err => {
+            errDiv.querySelector('.error-msg-text').textContent = 'Error de conexión';
+            errDiv.style.display = 'block';
+        });
+    });
+</script>
 {% endblock %}
