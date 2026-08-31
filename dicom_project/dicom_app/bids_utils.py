@@ -84,6 +84,103 @@ def anonymize_dicom(ds):
 
     return ds
 
+def extract_bids_metadata(ds):
+    """
+    Extracts authorized BIDS technical metadata from a DICOM dataset.
+    Returns a controlled, predictable dictionary without patient identifying fields.
+    """
+    metadata = {}
+    if ds is None:
+        return metadata
+
+    # 1. Manufacturer
+    if "Manufacturer" in ds and ds.Manufacturer:
+        metadata["Manufacturer"] = str(ds.Manufacturer).strip()
+
+    # 2. ManufacturersModelName
+    if "ManufacturerModelName" in ds and ds.ManufacturerModelName:
+        metadata["ManufacturersModelName"] = str(ds.ManufacturerModelName).strip()
+
+    # 3. MagneticFieldStrength (float)
+    if "MagneticFieldStrength" in ds and ds.MagneticFieldStrength != "":
+        try:
+            metadata["MagneticFieldStrength"] = float(ds.MagneticFieldStrength)
+        except (ValueError, TypeError):
+            pass
+
+    # 4. SoftwareVersions (string or list of strings)
+    if "SoftwareVersions" in ds and ds.SoftwareVersions:
+        val = ds.SoftwareVersions
+        if isinstance(val, (list, tuple, pydicom.multival.MultiValue)):
+            metadata["SoftwareVersions"] = [str(v).strip() for v in val if str(v).strip()]
+        else:
+            metadata["SoftwareVersions"] = str(val).strip()
+
+    # 5. ProtocolName
+    if "ProtocolName" in ds and ds.ProtocolName:
+        metadata["ProtocolName"] = str(ds.ProtocolName).strip()
+
+    # 6. SequenceName
+    if "SequenceName" in ds and ds.SequenceName:
+        metadata["SequenceName"] = str(ds.SequenceName).strip()
+
+    # 7. MRAcquisitionType
+    if "MRAcquisitionType" in ds and ds.MRAcquisitionType:
+        metadata["MRAcquisitionType"] = str(ds.MRAcquisitionType).strip()
+
+    # 8. FlipAngle (float)
+    if "FlipAngle" in ds and ds.FlipAngle != "":
+        try:
+            metadata["FlipAngle"] = float(ds.FlipAngle)
+        except (ValueError, TypeError):
+            pass
+
+    # 9. ScanningSequence (string or list)
+    if "ScanningSequence" in ds and ds.ScanningSequence:
+        val = ds.ScanningSequence
+        if isinstance(val, (list, tuple, pydicom.multival.MultiValue)):
+            metadata["ScanningSequence"] = [str(v).strip() for v in val if str(v).strip()]
+        else:
+            metadata["ScanningSequence"] = str(val).strip()
+
+    # 10. SequenceVariant (string or list)
+    if "SequenceVariant" in ds and ds.SequenceVariant:
+        val = ds.SequenceVariant
+        if isinstance(val, (list, tuple, pydicom.multival.MultiValue)):
+            metadata["SequenceVariant"] = [str(v).strip() for v in val if str(v).strip()]
+        else:
+            metadata["SequenceVariant"] = str(val).strip()
+
+    # 11. RepetitionTime (convert from ms to seconds: float(TR) / 1000.0)
+    if "RepetitionTime" in ds and ds.RepetitionTime != "":
+        try:
+            metadata["RepetitionTime"] = float(ds.RepetitionTime) / 1000.0
+        except (ValueError, TypeError):
+            pass
+
+    # 12. EchoTime (convert from ms to seconds: float(TE) / 1000.0)
+    if "EchoTime" in ds and ds.EchoTime != "":
+        try:
+            metadata["EchoTime"] = float(ds.EchoTime) / 1000.0
+        except (ValueError, TypeError):
+            pass
+
+    # 13. PixelSpacing ([float, float])
+    if "PixelSpacing" in ds and ds.PixelSpacing:
+        try:
+            metadata["PixelSpacing"] = [float(x) for x in ds.PixelSpacing]
+        except (ValueError, TypeError):
+            pass
+
+    # 14. SliceThickness (float)
+    if "SliceThickness" in ds and ds.SliceThickness != "":
+        try:
+            metadata["SliceThickness"] = float(ds.SliceThickness)
+        except (ValueError, TypeError):
+            pass
+
+    return metadata
+
 def convert_dicom_to_nifti(dicom_path, output_dir, output_basename):
     """
     Converts a single DICOM file (or series) to NIfTI.
@@ -103,24 +200,26 @@ def convert_dicom_to_nifti(dicom_path, output_dir, output_basename):
     generated_json = None
     
     try:
-        # 1. Read and Anonymize
-        ds = pydicom.dcmread(dicom_path)
-        ds = anonymize_dicom(ds)
+        # 1. Read Original DICOM & Extract BIDS Technical Metadata BEFORE Anonymization
+        raw_ds = pydicom.dcmread(dicom_path)
+        bids_metadata = extract_bids_metadata(raw_ds)
+
+        # 2. Anonymize dataset for conversion
+        ds = anonymize_dicom(raw_ds)
         
-        # 2. Save to temp directory
+        # 3. Save anonymized dataset to temp directory
         temp_dicom_path = os.path.join(temp_dicom_dir, 'image.dcm')
         ds.save_as(temp_dicom_path)
         
-        # 3. Try Convert using dicom2nifti first
+        # 4. Try Convert using dicom2nifti first
         logger.info(f"Converting {dicom_path} to NIfTI...")
         try:
             dicom2nifti.convert_directory(temp_dicom_dir, temp_convert_dir, compression=True, reorient=True)
         except Exception as e:
             logger.warning(f"dicom2nifti failed: {e}, trying fallback method...")
         
-        # 4. Find generated files
+        # 5. Find generated files
         nifti_files = list(Path(temp_convert_dir).glob("*.nii.gz"))
-        json_files = list(Path(temp_convert_dir).glob("*.json"))
         
         if nifti_files:
             # Move NIfTI file
@@ -130,21 +229,11 @@ def convert_dicom_to_nifti(dicom_path, output_dir, output_basename):
             generated_nifti = dest_nifti
             logger.info(f"Generated NIfTI: {dest_nifti}")
             
-            # Handle JSON sidecar
-            if json_files:
-                source_json = json_files[0]
-                dest_json = output_dir / f"{output_basename}.json"
-                shutil.move(str(source_json), str(dest_json))
-                generated_json = dest_json
-            else:
-                # Create minimal JSON if missing
-                dest_json = output_dir / f"{output_basename}.json"
-                with open(dest_json, 'w') as f:
-                    json.dump({
-                        "Modality": ds.get("Modality", "MR"),
-                        "PatientName": "anonymous"
-                    }, f, indent=4)
-                generated_json = dest_json
+            # Write controlled BIDS JSON sidecar
+            dest_json = output_dir / f"{output_basename}.json"
+            with open(dest_json, 'w', encoding='utf-8') as f:
+                json.dump(bids_metadata, f, indent=4, ensure_ascii=False)
+            generated_json = dest_json
             
             logger.info(f"Generated JSON: {generated_json}")
         else:
@@ -152,7 +241,6 @@ def convert_dicom_to_nifti(dicom_path, output_dir, output_basename):
             logger.warning(f"dicom2nifti produced no output, using fallback conversion...")
             dest_nifti = output_dir / f"{output_basename}.nii.gz"
             
-            # Use the existing convert_single_dicom_to_nifti function
             import numpy as np
             import nibabel as nib
             
@@ -165,13 +253,10 @@ def convert_dicom_to_nifti(dicom_path, output_dir, output_basename):
                     generated_nifti = dest_nifti
                     logger.info(f"Fallback conversion successful: {dest_nifti}")
                     
-                    # Create JSON
+                    # Write controlled BIDS JSON sidecar
                     dest_json = output_dir / f"{output_basename}.json"
-                    with open(dest_json, 'w') as f:
-                        json.dump({
-                            "Modality": ds.get("Modality", "MR"),
-                            "PatientName": "anonymous"
-                        }, f, indent=4)
+                    with open(dest_json, 'w', encoding='utf-8') as f:
+                        json.dump(bids_metadata, f, indent=4, ensure_ascii=False)
                     generated_json = dest_json
                 else:
                     logger.error(f"Image has invalid dimensions: {image.ndim}")
@@ -188,19 +273,68 @@ def convert_dicom_to_nifti(dicom_path, output_dir, output_basename):
         
     return generated_nifti, generated_json
 
-def create_dataset_description(base_dir):
+def calculate_age(birth_date, ref_date):
     """
-    Creates dataset_description.json
+    Calculates age in years between birth_date and ref_date.
+    Returns 'n/a' if birth_date or ref_date is None or if age is negative.
     """
+    if not birth_date or not ref_date:
+        return 'n/a'
+
+    if hasattr(ref_date, 'date'):
+        ref_date = ref_date.date()
+
+    if hasattr(birth_date, 'date'):
+        birth_date = birth_date.date()
+
+    age = ref_date.year - birth_date.year
+    if (ref_date.month, ref_date.day) < (birth_date.month, birth_date.day):
+        age -= 1
+
+    return str(age) if age >= 0 else 'n/a'
+
+def create_dataset_description(base_dir, experiment=None):
+    """
+    Creates dataset_description.json using metadata from the experiment.
+    """
+    name = experiment.name if (experiment and experiment.name) else "My Dataset"
+
+    authors = []
+    if experiment:
+        # 1. Obtener miembros/investigadores del experimento (Member)
+        members = list(experiment.members.all()) if hasattr(experiment, 'members') else []
+        if members:
+            for m in members:
+                full_name = f"{m.first_name} {m.last_name}".strip()
+                if full_name and full_name not in authors:
+                    authors.append(full_name)
+
+        # 2. Si no hay miembros asociados, usar el usuario creador del experimento
+        if not authors and hasattr(experiment, 'created_by') and experiment.created_by:
+            creator_name = experiment.created_by.get_full_name().strip() or experiment.created_by.username
+            if creator_name and creator_name not in authors:
+                authors.append(creator_name)
+
+    if not authors:
+        authors = ["DICOM HUB User"]
+
+    # Licencia por defecto "CC-BY-4.0" (para mantener compatibilidad BIDS).
+    # NOTA: La licencia podrá configurarse si en futuras fases se añade un campo de licencia a Experiment.
     data = {
-        "Name": "My Dataset",
+        "Name": name,
         "BIDSVersion": "1.8.0",
         "DatasetType": "raw",
-        "Authors": ["DICOM HUB User"],
+        "Authors": authors,
+        "GeneratedBy": [
+            {
+                "Name": "DICOM-HUB",
+                "Description": "Exportación automática de datos DICOM al estándar BIDS"
+            }
+        ],
         "License": "CC-BY-4.0"
     }
-    with open(base_dir / "dataset_description.json", 'w') as f:
-        json.dump(data, f, indent=4)
+    with open(base_dir / "dataset_description.json", 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
 
 def create_participants_tsv(base_dir, participants_data):
     """
@@ -208,7 +342,10 @@ def create_participants_tsv(base_dir, participants_data):
     participants_data: list of dicts with 'participant_id', 'age', 'sex', 'group'
     """
     tsv_path = base_dir / "participants.tsv"
-    with open(tsv_path, 'w') as f:
+    with open(tsv_path, 'w', encoding='utf-8') as f:
         f.write("participant_id\tage\tsex\tgroup\n")
         for p in participants_data:
-            f.write(f"{p['participant_id']}\t{p.get('age', 'n/a')}\t{p.get('sex', 'n/a')}\t{p.get('group', 'control')}\n")
+            age_val = p.get('age') if p.get('age') is not None else 'n/a'
+            sex_val = p.get('sex') if p.get('sex') is not None else 'n/a'
+            group_val = p.get('group') if p.get('group') is not None else 'n/a'
+            f.write(f"{p['participant_id']}\t{age_val}\t{sex_val}\t{group_val}\n")

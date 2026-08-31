@@ -27,7 +27,7 @@ import nibabel as nib
 logger = logging.getLogger(__name__)
 from .bids_utils import (
     normalize_subject_id, detect_modality, convert_dicom_to_nifti,
-    create_dataset_description, create_participants_tsv
+    create_dataset_description, create_participants_tsv, calculate_age
 )
 
 def generate_pacient_code():
@@ -219,24 +219,37 @@ def export_experiment_to_bids(request, experiment_id):
     bids_root.mkdir(parents=True, exist_ok=True)
 
     try:
-        # Obtener todos los participantes del experimento
-        participants = experiment.participants.all()
+        # Obtener los registros ExperimentParticipant para este experimento ordenados determinísticamente por ID
+        exp_participants = ExperimentParticipant.objects.filter(
+            experiment=experiment
+        ).select_related('participant', 'group').order_by('id')
 
-        if not participants.exists():
+        if not exp_participants.exists():
             return HttpResponse("No hay participantes asociados a este experimento.", status=404)
 
         participants_data = []
 
-        # Procesar cada participante
-        for idx, participant in enumerate(participants, start=1):
-            # Normalizar ID: sub-01, sub-02...
+        # Procesar cada participante a través de su relación en este experimento
+        for idx, ep in enumerate(exp_participants, start=1):
+            participant = ep.participant
+
+            # Normalizar ID BIDS: sub-01, sub-02...
             subject_id = normalize_subject_id(idx)
+
+            # Grupo del participante en este experimento específico
+            group_name = ep.group.name if ep.group else 'n/a'
+
+            # Sexo del participante ('M', 'F', 'O' o 'n/a')
+            sex_val = participant.sex if participant.sex in ['M', 'F', 'O'] else 'n/a'
+
+            # Edad calculada a partir de birth_date y la fecha de creación del experimento
+            age_val = calculate_age(participant.birth_date, experiment.created_at)
 
             participants_data.append({
                 'participant_id': subject_id,
-                'age': 'n/a', # Podríamos sacar esto de metadatos si existieran
-                'sex': 'n/a',
-                'group': 'control' # Default
+                'age': age_val,
+                'sex': sex_val,
+                'group': group_name
             })
 
             subject_dir = bids_root / subject_id
@@ -319,8 +332,8 @@ def export_experiment_to_bids(request, experiment_id):
         # Crear participants.tsv
         create_participants_tsv(bids_root, participants_data)
 
-        # Crear dataset_description.json
-        create_dataset_description(bids_root)
+        # Crear dataset_description.json con metadatos del experimento
+        create_dataset_description(bids_root, experiment)
 
         # Comprimir todo en un ZIP
         zip_path = tempfile.NamedTemporaryFile(delete=False, suffix=".zip").name
