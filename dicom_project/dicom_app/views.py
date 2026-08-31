@@ -185,8 +185,13 @@ class DicomFileDeleteView(LoginRequiredMixin, DeleteView):
         return get_user_dicom_files(self.request.user)
 
     def get_success_url(self):
-        # Redirect to the participant's experiments list after deletion
-        if self.object.participant:
+        # Redirect to the participant's DICOM data page (Datos del Participante)
+        if self.object.participant and self.object.experiment:
+            return reverse_lazy('participant_experiment_dicoms', kwargs={
+                'participant_id': self.object.participant.id,
+                'experiment_id': self.object.experiment.id
+            })
+        elif self.object.participant:
             return reverse_lazy('participant_experiments', kwargs={'participant_id': self.object.participant.id})
         return reverse_lazy('participant_dashboard')
 

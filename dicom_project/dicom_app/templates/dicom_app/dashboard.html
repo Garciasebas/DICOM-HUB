@@ -44,20 +44,18 @@
                     <table class="custom-table">
                         <thead>
                             <tr>
-                                <th style="width: 40%;">Nombre del experimento</th>
+                                <th style="width: 50%;">Nombre del experimento</th>
                                 <th style="width: 30%;">Fecha de creación</th>
-                                <th style="text-align: center; width: 15%;">Visualizar</th>
-                                <th style="text-align: right; width: 15%;">Acciones</th>
+                                <th style="text-align: right; width: 20%;">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for experiment in experiments %}
                             <tr>
-                                <td>{{ experiment.name }}</td>
-                                <td>{{ experiment.created_at|date:"Y-m-d H:i" }}</td>
-                                <td style="text-align: center;">
-                                    <a href="{% url 'experiment_detail' experiment.pk %}" class="action-link">Detalles</a>
+                                <td>
+                                    <a href="{% url 'experiment_detail' experiment.pk %}" class="action-link" style="font-weight: 600;">{{ experiment.name }}</a>
                                 </td>
+                                <td>{{ experiment.created_at|date:"Y-m-d H:i" }}</td>
                                 <td style="text-align: right;">
                                     <a href="{% url 'export_experiment_to_bids' experiment.pk %}" class="action-link">Exportación a
                                         BIDS</a>
@@ -65,7 +63,7 @@
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="4" style="text-align: center; padding: 40px; color: #95a5a6;">
+                                <td colspan="3" style="text-align: center; padding: 40px; color: #95a5a6;">
                                     No hay experimentos creados.
                                 </td>
                             </tr>

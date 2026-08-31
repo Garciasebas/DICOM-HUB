@@ -176,3 +176,47 @@ class NavigationAndValidationTestCase(TestCase):
         created_exp = Experiment.objects.filter(name=exp_valid_name).first()
         self.assertIsNotNone(created_exp)
         self.assertEqual(created_exp.name, exp_valid_name)
+
+    def test_14_dashboard_experiment_name_link_and_no_visualizar_column(self):
+        res_dash = self.client.get(reverse('dashboard'))
+        self.assertEqual(res_dash.status_code, 200)
+        content = res_dash.content.decode('utf-8')
+
+        # Verify Visualizar column is removed from table header
+        self.assertNotIn('>Visualizar<', content)
+
+        # Verify experiment name is clickable and points to experiment_detail
+        url_detail = reverse('experiment_detail', kwargs={'pk': self.experiment_origin.pk})
+        self.assertIn(url_detail, content)
+        self.assertIn(self.experiment_origin.name, content)
+
+        # Verify Exportación a BIDS link remains present
+        url_bids = reverse('export_experiment_to_bids', args=[self.experiment_origin.pk])
+        self.assertIn(url_bids, content)
+
+    def test_15_dicom_file_delete_redirects_to_participant_experiment_dicoms(self):
+        """15. Al eliminar un archivo DICOM se redirige a Datos del Participante y NO a Experimentos del Participante."""
+        # 1. Access DICOM detail view from participant data context
+        url_detail = reverse('dicomfile_detail', kwargs={'pk': self.dicom_file.pk})
+        res_detail = self.client.get(url_detail)
+        self.assertEqual(res_detail.status_code, 200)
+
+        # 2. Execute deletion
+        url_delete = reverse('dicomfile_delete', kwargs={'pk': self.dicom_file.pk})
+        res_delete = self.client.post(url_delete)
+
+        # 3. Confirm file was deleted from DB
+        self.assertFalse(DicomFile.objects.filter(pk=self.dicom_file.pk).exists())
+
+        # 4. Confirm redirect URL is participant_experiment_dicoms (Datos del Participante)
+        expected_url = reverse('participant_experiment_dicoms', kwargs={
+            'participant_id': self.participant.pk,
+            'experiment_id': self.experiment_origin.pk
+        })
+        wrong_url = reverse('participant_experiments', kwargs={'participant_id': self.participant.pk})
+
+        self.assertEqual(res_delete.status_code, 302)
+        self.assertRedirects(res_delete, expected_url)
+
+        # 5. Confirm it does NOT redirect to participant_experiments
+        self.assertNotEqual(res_delete.url, wrong_url)
