@@ -118,7 +118,7 @@
                         {% for ep in experiment_participants %}
                         <div class="participant-row-detail" style="display: grid; grid-template-columns: 2fr 1.5fr 40px; align-items: center; gap: 1rem; padding: 0.75rem 1rem; border-bottom: 1px solid #E2E8F0;">
                             <div class="participant-name-bold" title="{{ ep.participant.first_name }} {{ ep.participant.last_name }}">
-                                <a href="{% url 'participant_experiment_dicoms' ep.participant.pk experiment.pk %}" class="participant-name-link">
+                                <a href="{% url 'participant_experiment_dicoms' ep.participant.pk experiment.pk %}?from_experiment={{ experiment.pk }}" class="participant-name-link">
                                     {{ ep.participant.first_name }} {{ ep.participant.last_name }}
                                 </a>
                             </div>

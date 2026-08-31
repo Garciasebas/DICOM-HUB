@@ -220,3 +220,98 @@ class NavigationAndValidationTestCase(TestCase):
 
         # 5. Confirm it does NOT redirect to participant_experiments
         self.assertNotEqual(res_delete.url, wrong_url)
+
+    def test_16_participant_experiments_simplified_table_and_name_link(self):
+        """16. En Experimentos del Participante la tabla no tiene Visualizar y el nombre del experimento lleva a Datos del Participante."""
+        url_part_exp = reverse('participant_experiments', kwargs={'participant_id': self.participant.pk})
+        res = self.client.get(url_part_exp)
+        self.assertEqual(res.status_code, 200)
+        content = res.content.decode('utf-8')
+
+        # 1. Verify "Visualizar" column is removed from table header
+        self.assertNotIn('>Visualizar<', content)
+
+        # 2. Verify "Archivos DICOM" and "Nota de Consentimiento" links are removed from this table
+        self.assertNotIn('Archivos DICOM', content)
+        self.assertNotIn('Nota de Consentimiento', content)
+
+        # 3. Verify experiment name appears as a link pointing to participant_experiment_dicoms
+        target_url = reverse('participant_experiment_dicoms', kwargs={
+            'participant_id': self.participant.pk,
+            'experiment_id': self.experiment_origin.pk
+        })
+        self.assertIn(target_url, content)
+        self.assertIn(self.experiment_origin.name, content)
+
+        # 4. Verify accessing participant_experiment_dicoms view works cleanly
+        res_target = self.client.get(target_url)
+        self.assertEqual(res_target.status_code, 200)
+        content_target = res_target.content.decode('utf-8')
+        self.assertIn('Datos del Participante', content_target)
+        self.assertIn('Información del Participante', content_target)
+
+    def test_17_flow_1_navigation_from_participants(self):
+        """TEST A: Flujo 1 desde Participantes -> Experimentos del Participante -> Datos del Participante"""
+        # 1. Access Datos del Participante without from_experiment (from Participants flow)
+        url_part_exp = reverse('participant_experiments', kwargs={'participant_id': self.participant.pk})
+        url_part_dicoms = reverse('participant_experiment_dicoms', kwargs={
+            'participant_id': self.participant.pk,
+            'experiment_id': self.experiment_origin.pk
+        })
+        res = self.client.get(url_part_dicoms)
+        self.assertEqual(res.status_code, 200)
+        content = res.content.decode('utf-8')
+
+        # 2. Verify Breadcrumb for Flow 1
+        url_part_list = reverse('participant_list')
+        self.assertIn(url_part_list, content)
+        self.assertIn('Participantes', content)
+        self.assertIn(url_part_exp, content)
+        self.assertIn('Experimentos del Participante', content)
+        self.assertIn('Datos del Participante', content)
+
+        # 3. Verify Atrás button returns to Experimentos del Participante
+        self.assertIn(f'href="{url_part_exp}"', content)
+
+    def test_18_flow_2_navigation_from_experiments(self):
+        """TEST B: Flujo 2 desde Listado de Experimentos -> Detalle del Experimento -> Datos del Participante"""
+        # 1. Access Datos del Participante with from_experiment (from Experiments flow)
+        url_exp_detail = reverse('experiment_detail', kwargs={'pk': self.experiment_origin.pk})
+        url_part_dicoms = f"{reverse('participant_experiment_dicoms', kwargs={'participant_id': self.participant.pk, 'experiment_id': self.experiment_origin.pk})}?from_experiment={self.experiment_origin.pk}"
+        res = self.client.get(url_part_dicoms)
+        self.assertEqual(res.status_code, 200)
+        content = res.content.decode('utf-8')
+
+        # 2. Verify Breadcrumb for Flow 2
+        url_dash = reverse('dashboard')
+        self.assertIn(url_dash, content)
+        self.assertIn('Listado de Experimentos', content)
+        self.assertIn(url_exp_detail, content)
+        self.assertIn('Detalle del Experimento', content)
+        self.assertIn('Datos del Participante', content)
+
+        # 3. Verify Atrás button returns to Detalle del Experimento
+        self.assertIn(f'href="{url_exp_detail}"', content)
+
+    def test_19_participant_dashboard_header_and_ver_experimentos_link(self):
+        """19. En Listado de Participantes se muestra 'Experimentos' y 'Ver experimentos' apuntando a participant_experiments."""
+        url_part_dash = reverse('participant_dashboard')
+        res = self.client.get(url_part_dash)
+        self.assertEqual(res.status_code, 200)
+        content = res.content.decode('utf-8')
+
+        # 1. Verify "Visualizar" header is removed and "Experimentos" is present
+        self.assertNotIn('>Visualizar<', content)
+        self.assertIn('>Experimentos<', content)
+
+        # 2. Verify "Detalles" text link is removed and "Ver experimentos" is present
+        self.assertNotIn('Detalles</a>', content)
+        self.assertIn('Ver experimentos</a>', content)
+
+        # 3. Verify "Ver experimentos" points to participant_experiments
+        target_url = reverse('participant_experiments', kwargs={'participant_id': self.participant.pk})
+        self.assertIn(target_url, content)
+
+        # 4. Verify accessing participant_experiments works correctly
+        res_part_exp = self.client.get(target_url)
+        self.assertEqual(res_part_exp.status_code, 200)

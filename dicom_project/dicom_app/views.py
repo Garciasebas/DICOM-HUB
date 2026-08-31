@@ -1036,7 +1036,7 @@ def update_participant_demographics_ajax(request, participant_id):
             'message': 'Datos del participante actualizados correctamente.',
             'first_name': participant.first_name,
             'last_name': participant.last_name,
-            'birth_date': participant.birth_date.strftime('%Y-%m-%d') if participant.birth_date else None,
+            'birth_date': participant.birth_date.strftime('%d-%m-%Y') if participant.birth_date else None,
             'sex': participant.sex,
             'sex_display': participant.get_sex_display() if participant.sex else 'No especificado'
         })

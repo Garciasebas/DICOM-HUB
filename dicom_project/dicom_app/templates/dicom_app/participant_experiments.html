@@ -74,32 +74,24 @@
                         <thead>
                             <tr>
                                 <th scope="col">Experimento</th>
-                                <th scope="col" style="width: 180px; white-space: nowrap;">Fecha de creación</th>
-                                <th scope="col" style="width: 340px; white-space: nowrap;">Visualizar</th>
+                                <th scope="col" style="width: 220px; white-space: nowrap;">Fecha de creación</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for experiment in experiments %}
                             <tr>
-                                <td style="word-wrap: break-word; overflow-wrap: break-word; word-break: normal; {% if from_experiment and experiment.pk == from_experiment.pk %}font-weight: 700; color: #000;{% else %}font-weight: 500; color: #555;{% endif %}">{{ experiment.name }}
+                                <td style="word-wrap: break-word; overflow-wrap: break-word; word-break: normal;">
+                                    <a href="{% url 'participant_experiment_dicoms' participant.pk experiment.pk %}{% if from_experiment %}?from_experiment={{ from_experiment.pk }}{% endif %}"
+                                        class="action-link" style="font-weight: 600;">
+                                        {{ experiment.name }}
+                                    </a>
                                 </td>
                                 <td style="white-space: nowrap;">{{ experiment.created_at|date:"Y-m-d H:i" }}
-                                </td>
-                                <td style="white-space: nowrap;">
-                                    <a href="{% url 'participant_experiment_dicoms' participant.pk experiment.pk %}{% if from_experiment %}?from_experiment={{ from_experiment.pk }}{% endif %}"
-                                        class="action-link" style="margin-right: 0.75rem;">
-                                        Archivos DICOM
-                                    </a>
-                                    <span style="color: #ddd;">|</span>
-                                    <a href="{% url 'view_consent_note' participant.pk experiment.pk %}" target="_blank"
-                                        class="action-link" style="margin-left: 0.75rem;">
-                                        Nota de Consentimiento
-                                    </a>
                                 </td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="3" style="text-align: center; padding: 40px; color: #95a5a6;">No se encontraron experimentos para este participante.</td>
+                                <td colspan="2" style="text-align: center; padding: 40px; color: #95a5a6;">No se encontraron experimentos para este participante.</td>
                             </tr>
                             {% endfor %}
                         </tbody>

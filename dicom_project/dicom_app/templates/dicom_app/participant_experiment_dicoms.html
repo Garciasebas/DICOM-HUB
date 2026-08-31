@@ -15,9 +15,15 @@
         <div class="col-12 col-xl-10">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb breadcrumb-custom">
+                    {% if from_experiment %}
                     <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="breadcrumb-link">Listado de Experimentos</a></li>
-                    <li class="breadcrumb-item"><a href="{% url 'experiment_detail' experiment.pk %}" class="breadcrumb-link">Detalle del Experimento</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'experiment_detail' from_experiment.pk %}" class="breadcrumb-link">Detalle del Experimento</a></li>
                     <li class="breadcrumb-item active" aria-current="page">Datos del Participante</li>
+                    {% else %}
+                    <li class="breadcrumb-item"><a href="{% url 'participant_list' %}" class="breadcrumb-link">Participantes</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'participant_experiments' participant.pk %}" class="breadcrumb-link">Experimentos del Participante</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Datos del Participante</li>
+                    {% endif %}
                 </ol>
             </nav>
         </div>
@@ -46,10 +52,17 @@
                                 {% endif %}
                             </p>
                         </div>
-                        <a href="{% url 'experiment_detail' experiment.pk %}" class="btn btn-outline-secondary"
+                        {% if from_experiment %}
+                        <a href="{% url 'experiment_detail' from_experiment.pk %}" class="btn btn-outline-secondary"
                             style="border-radius: 8px; padding: 0.5rem 1.5rem; font-size: 0.9rem; font-weight: 500;">
                             ← Atrás
                         </a>
+                        {% else %}
+                        <a href="{% url 'participant_experiments' participant.pk %}" class="btn btn-outline-secondary"
+                            style="border-radius: 8px; padding: 0.5rem 1.5rem; font-size: 0.9rem; font-weight: 500;">
+                            ← Atrás
+                        </a>
+                        {% endif %}
                     </div>
 
                     <!-- Section 1: Información del participante -->
@@ -67,7 +80,7 @@
                                 <strong>Nombre:</strong> <span id="display-first-name">{{ participant.first_name }}</span>
                             </div>
                             <div class="col-12 col-md-6">
-                                <strong>Fecha de nacimiento:</strong> <span id="display-birth-date">{{ participant.birth_date|date:"Y-m-d"|default:"No especificada" }}</span>
+                                <strong>Fecha de nacimiento:</strong> <span id="display-birth-date">{{ participant.birth_date|date:"d-m-Y"|default:"No especificada" }}</span>
                             </div>
                             <div class="col-12 col-md-6">
                                 <strong>Apellido:</strong> <span id="display-last-name">{{ participant.last_name }}</span>

@@ -47,7 +47,7 @@
                             <tr>
                                 <th style="width: 45%;">Nombre del participante</th>
                                 <th style="width: 35%;">Última participación</th>
-                                <th style="text-align: right; width: 20%;">Visualizar</th>
+                                <th style="text-align: right; width: 20%;">Experimentos</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -62,7 +62,7 @@
                                     {% endif %}
                                 </td>
                                 <td style="text-align: right;">
-                                    <a href="{% url 'participant_experiments' participant.pk %}" class="action-link">Detalles</a>
+                                    <a href="{% url 'participant_experiments' participant.pk %}" class="action-link">Ver experimentos</a>
                                 </td>
                             </tr>
                             {% empty %}

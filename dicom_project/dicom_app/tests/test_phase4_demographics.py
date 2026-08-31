@@ -115,7 +115,7 @@ class Phase4DemographicsTestCase(TestCase):
         # Allowed fields shown
         self.assertIn("Sebastian", html)
         self.assertIn("Garcia", html)
-        self.assertIn("1995-03-25", html)
+        self.assertIn("25-03-1995", html)
         self.assertIn("Masculino", html)
 
         # Excluded fields hidden
@@ -248,3 +248,15 @@ class Phase4DemographicsTestCase(TestCase):
         data = res.json()
         self.assertEqual(data['status'], 'error')
         self.assertIn("Ya existe un participante", data['message'])
+
+    def test_22_birth_date_formatted_dd_mm_yyyy(self):
+        """22. Comprueba que una fecha de nacimiento como 2006-02-21 se renderiza como 21-02-2006 en Datos del Participante."""
+        self.part1.birth_date = datetime.date(2006, 2, 21)
+        self.part1.save()
+
+        url = reverse('participant_experiment_dicoms', args=[self.part1.pk, self.exp.pk])
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, 200)
+        html = res.content.decode('utf-8')
+
+        self.assertIn('<span id="display-birth-date">21-02-2006</span>', html)
