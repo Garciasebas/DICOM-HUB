@@ -173,7 +173,7 @@ class PermissionsAndIsolationTestCase(TestCase):
         self.assertEqual(res_admin_dash.status_code, 200)
         self.assertIn(exp_temp.name, res_admin_dash.content.decode('utf-8'))
 
-    def test_16_automatic_orphan_cleanup_upon_experiment_deletion(self):
+    def test_16_participant_and_member_preserved_upon_experiment_deletion(self):
         part_orphan = Participant.objects.create(first_name=f'OrphanPart_{self.uid}', last_name='Test', subject_id=f'SUB_ORP_{self.uid}')
         member_orphan = Member.objects.create(first_name=f'OrphanMem_{self.uid}', last_name='Test', role='Neurólogo/a')
         exp_delete_test = Experiment.objects.create(name=f'Exp_Delete_{self.uid}', description='Del', created_by=self.admin)
@@ -182,8 +182,9 @@ class PermissionsAndIsolationTestCase(TestCase):
 
         res_del = self.client_admin.post(reverse('experiment_delete', kwargs={'pk': exp_delete_test.pk}))
         self.assertIn(res_del.status_code, [200, 302])
-        self.assertFalse(Participant.objects.filter(pk=part_orphan.pk).exists())
-        self.assertFalse(Member.objects.filter(pk=member_orphan.pk).exists())
+        # Participant and Member should remain preserved
+        self.assertTrue(Participant.objects.filter(pk=part_orphan.pk).exists())
+        self.assertTrue(Member.objects.filter(pk=member_orphan.pk).exists())
 
     def test_17_dicom_file_set_null_on_experiment_or_participant_deletion(self):
         self.assertTrue(DicomFile.objects.filter(pk=self.dicom1.pk).exists())

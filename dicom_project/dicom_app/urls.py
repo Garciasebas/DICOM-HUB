@@ -28,7 +28,8 @@ from .views import (
     assign_participant_group_ajax,
     get_group_participants_ajax,
     delete_group_ajax,
-    update_participant_demographics_ajax
+    update_participant_demographics_ajax,
+    delete_participant
 )
 
 from django.views.generic import RedirectView
@@ -49,6 +50,7 @@ urlpatterns = [
     path('participants/', participant_dashboard, name='participant_list'),
     path('participant/<int:participant_id>/experiments/', participant_experiments, name='participant_experiments'),
     path('participant/<int:participant_id>/experiments/<int:experiment_id>/', participant_experiment_dicoms, name='participant_experiment_dicoms'),
+    path('participant/<int:participant_id>/delete/', delete_participant, name='delete_participant'),
     
     # File upload URLs
     path('experiment/<int:experiment_id>/participant/<int:participant_id>/upload-consent/', upload_consent_note, name='upload_consent_note'),

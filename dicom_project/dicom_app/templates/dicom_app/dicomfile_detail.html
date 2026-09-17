@@ -14,10 +14,16 @@
         <div class="col-12 col-xl-10">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb breadcrumb-custom">
+                    {% if from_experiment %}
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="breadcrumb-link">Listado de Experimentos</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'experiment_detail' from_experiment.pk %}" class="breadcrumb-link">Detalle del Experimento</a></li>
                     {% if dicom_file.participant and dicom_file.experiment %}
+                    <li class="breadcrumb-item"><a href="{% url 'participant_experiment_dicoms' dicom_file.participant.pk dicom_file.experiment.pk %}?from_experiment={{ from_experiment.pk }}" class="breadcrumb-link">Participación en el Experimento</a></li>
+                    {% endif %}
+                    {% elif dicom_file.participant and dicom_file.experiment %}
                     <li class="breadcrumb-item"><a href="{% url 'participant_list' %}" class="breadcrumb-link">Participantes</a></li>
                     <li class="breadcrumb-item"><a href="{% url 'participant_experiments' dicom_file.participant.pk %}" class="breadcrumb-link">Experimentos del Participante</a></li>
-                    <li class="breadcrumb-item"><a href="{% url 'participant_experiment_dicoms' dicom_file.participant.pk dicom_file.experiment.pk %}" class="breadcrumb-link">Datos del Participante</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'participant_experiment_dicoms' dicom_file.participant.pk dicom_file.experiment.pk %}" class="breadcrumb-link">Participación en el Experimento</a></li>
                     {% elif dicom_file.participant %}
                     <li class="breadcrumb-item"><a href="{% url 'participant_list' %}" class="breadcrumb-link">Participantes</a></li>
                     <li class="breadcrumb-item"><a href="{% url 'participant_experiments' dicom_file.participant.pk %}" class="breadcrumb-link">Experimentos del Participante</a></li>
@@ -46,7 +52,17 @@
                             <button type="button" class="btn-delete-red" data-bs-toggle="modal" data-bs-target="#deleteDicomModal">
                                 <i class="fas fa-trash-can"></i> Eliminar
                             </button>
-                            {% if dicom_file.participant and dicom_file.experiment %}
+                            {% if from_experiment %}
+                                {% if dicom_file.participant and dicom_file.experiment %}
+                                <a href="{% url 'participant_experiment_dicoms' dicom_file.participant.pk dicom_file.experiment.pk %}?from_experiment={{ from_experiment.pk }}" class="btn-cancel-outline">
+                                    ← Atrás
+                                </a>
+                                {% else %}
+                                <a href="{% url 'experiment_detail' from_experiment.pk %}" class="btn-cancel-outline">
+                                    ← Atrás
+                                </a>
+                                {% endif %}
+                            {% elif dicom_file.participant and dicom_file.experiment %}
                             <a href="{% url 'participant_experiment_dicoms' dicom_file.participant.pk dicom_file.experiment.pk %}" class="btn-cancel-outline">
                                 ← Atrás
                             </a>

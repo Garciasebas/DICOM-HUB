@@ -1,6 +1,6 @@
 import pydicom
 from django.shortcuts import render, get_object_or_404, redirect
-from django.db import models, transaction
+from django.db import models, transaction, connection
 from django.db.models import Q
 from django.urls import reverse_lazy
 from django.views.generic import DetailView, CreateView, DeleteView
@@ -8,6 +8,7 @@ from django.http import FileResponse, Http404, HttpResponse, JsonResponse, HttpR
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib import messages
 import os
 import traceback
 import shutil
@@ -121,6 +122,10 @@ class DicomFileDetailView(LoginRequiredMixin, DetailView):
         # Add participant_id to context for the back button
         if self.object.participant:
             context['participant_id'] = self.object.participant.id
+
+        from_experiment_id = self.request.GET.get('from_experiment')
+        if from_experiment_id:
+            context['from_experiment'] = get_user_experiments(self.request.user).filter(pk=from_experiment_id).first()
 
         # Optimization: Fetch all tags efficiently
         # We fetch all tags in one query to avoid N+1 issues and multiple hits
@@ -477,25 +482,48 @@ class ExperimentDeleteView(LoginRequiredMixin, DeleteView):
         experiment = self.get_object()
 
         with transaction.atomic():
-            associated_participants = list(experiment.participants.all())
-            associated_members = list(experiment.members.all())
+            # 1. Clean legacy table if it exists in DB
+            with connection.cursor() as cursor:
+                tables = connection.introspection.table_names(cursor)
+                if 'dicom_app_participant_experiments' in tables:
+                    cursor.execute(
+                        "DELETE FROM dicom_app_participant_experiments WHERE experiment_id = %s;",
+                        [experiment.pk]
+                    )
 
-            orphan_participants = [
-                p for p in associated_participants
-                if not p.experiments.exclude(pk=experiment.pk).exists()
-            ]
-            orphan_members = [
-                m for m in associated_members
-                if not m.experiments.exclude(pk=experiment.pk).exists()
-            ]
+            # 2. Clean associated ConsentFiles and physical files
+            for cf in list(experiment.consent_files.all()):
+                if cf.file and hasattr(cf.file, 'path'):
+                    try:
+                        if os.path.exists(cf.file.path):
+                            os.remove(cf.file.path)
+                    except OSError:
+                        pass
+                cf.delete()
 
+            # 3. Clean associated DicomFiles, DicomTags, and physical files
+            for df in list(experiment.dicom_files.all()):
+                df.tags.all().delete()
+                if df.file and hasattr(df.file, 'path'):
+                    try:
+                        if os.path.exists(df.file.path):
+                            os.remove(df.file.path)
+                    except OSError:
+                        pass
+                df.delete()
+
+            # 4. Clean ExperimentParticipant and ParticipantGroup
+            experiment.experiment_participants.all().delete()
+            experiment.groups.all().delete()
+
+            # 5. Clear ManyToMany relations
+            experiment.members.clear()
+            experiment.participants.clear()
+
+            # 6. Delete Experiment object
             experiment.delete()
 
-            for p in orphan_participants:
-                p.delete()
-
-            for m in orphan_members:
-                m.delete()
+            # NOTE: Participant and User objects are preserved intact.
 
         return HttpResponseRedirect(success_url)
 
@@ -1142,6 +1170,11 @@ def add_participants_to_experiment(request, pk):
         if not isinstance(participant_ids, list) or not participant_ids:
             return JsonResponse({'status': 'error', 'message': 'Debe seleccionar al menos un participante.'}, status=400)
 
+        try:
+            participant_ids = [int(pid) for pid in participant_ids]
+        except (ValueError, TypeError):
+            return JsonResponse({'status': 'error', 'message': 'ID de participante inválido.'}, status=400)
+
         if not group_id:
             return JsonResponse({'status': 'error', 'message': 'Debe seleccionar un grupo obligatoriamente para este experimento.'}, status=400)
 
@@ -1177,10 +1210,18 @@ def add_members_to_experiment(request, pk):
     try:
         experiment = get_object_or_404(get_user_experiments(request.user), pk=pk)
         data = json.loads(request.body)
+        member_id = data.get('member_id')
         member_ids = data.get('member_ids', [])
+        if member_id and not member_ids:
+            member_ids = [member_id]
 
         if not isinstance(member_ids, list) or not member_ids:
             return JsonResponse({'status': 'error', 'message': 'Debe seleccionar al menos un miembro.'}, status=400)
+
+        try:
+            member_ids = [int(mid) for mid in member_ids]
+        except (ValueError, TypeError):
+            return JsonResponse({'status': 'error', 'message': 'ID de miembro inválido.'}, status=400)
 
         # Validar alcance de miembros
         allowed_member_ids = set(get_user_members(request.user).values_list('id', flat=True))
@@ -1229,12 +1270,9 @@ def remove_participant_from_experiment(request, pk, participant_id):
                         pass
             dicom_qs.delete()
 
-            # 3. Remove M2M relation
+            # 3. Remove M2M relation (ExperimentParticipant)
             experiment.participants.remove(participant)
-
-            # 4. Remove participant if no remaining experiments
-            if participant.experiments.count() == 0:
-                participant.delete()
+            # Note: Participant object remains intact in database even with 0 experiments.
 
             # 5. Delete physical files on_commit
             def cleanup_files():
@@ -1269,6 +1307,42 @@ def remove_member_from_experiment(request, pk, member_id):
         return JsonResponse({'status': 'success', 'message': 'Miembro quitado del experimento exitosamente.'})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@require_POST
+@login_required
+def delete_participant(request, participant_id):
+    """
+    Elimina un participante del sistema únicamente cuando no posee experimentos,
+    participaciones, archivos DICOM ni notas de consentimiento asociadas.
+    Conserva intactos los usuarios de Django (auth.User).
+    """
+    participant = get_object_or_404(get_user_participants(request.user), pk=participant_id)
+
+    reasons = []
+    if participant.experiment_participants.exists():
+        reasons.append("pertenece a uno o más experimentos")
+    if participant.dicom_files.exists():
+        reasons.append("tiene archivos DICOM asociados")
+    if participant.consent_files.exists():
+        reasons.append("tiene notas de consentimiento asociadas")
+
+    if reasons:
+        reason_str = ", ".join(reasons)
+        error_msg = f"No se puede eliminar este participante porque tiene información asociada: {reason_str}."
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.META.get('HTTP_ACCEPT', ''):
+            return JsonResponse({'status': 'error', 'message': error_msg}, status=400)
+        messages.error(request, error_msg)
+        return redirect('participant_dashboard')
+
+    with transaction.atomic():
+        participant.delete()
+
+    success_msg = "Participante eliminado correctamente."
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.META.get('HTTP_ACCEPT', ''):
+        return JsonResponse({'status': 'success', 'message': success_msg})
+    messages.success(request, success_msg)
+    return redirect('participant_dashboard')
+
 
 
 

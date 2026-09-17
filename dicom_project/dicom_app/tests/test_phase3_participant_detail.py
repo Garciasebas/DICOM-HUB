@@ -61,7 +61,7 @@ class Phase3ParticipantDetailTestCase(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.context['participant'], self.part1)
         self.assertEqual(res.context['experiment'], self.exp1)
-        self.assertIn("Datos del Participante", res.content.decode('utf-8'))
+        self.assertIn("Participación en el Experimento", res.content.decode('utf-8'))
         self.assertIn("Sebastian", res.content.decode('utf-8'))
         self.assertIn("Garcia", res.content.decode('utf-8'))
         self.assertIn("Estudio Alfa P3", res.content.decode('utf-8'))
@@ -156,7 +156,7 @@ class Phase3ParticipantDetailTestCase(TestCase):
 
     @patch('dicom_app.views.process_dicom_file')
     def test_14_and_15_upload_dicom_redirects_to_participant_data(self, mock_process):
-        """14 & 15. La carga de DICOM funciona y después de cargar se muestra el enlace a Datos del Participante."""
+        """14 & 15. La carga de DICOM funciona y después de cargar se muestra el enlace a Participación en el Experimento."""
         dicom_instance = DicomFile.objects.create(participant=self.part1, experiment=self.exp1, original_filename="test.dcm")
         mock_process.return_value = (dicom_instance, {})
 
@@ -165,19 +165,19 @@ class Phase3ParticipantDetailTestCase(TestCase):
         
         res = self.client.post(url_upload, {'dicom_file': file})
         self.assertEqual(res.status_code, 200)
-        self.assertIn("Volver a Datos del Participante", res.content.decode('utf-8'))
+        self.assertIn("Volver a Participación en el Experimento", res.content.decode('utf-8'))
         target_url = reverse('participant_experiment_dicoms', args=[self.part1.pk, self.exp1.pk])
         self.assertIn(target_url, res.content.decode('utf-8'))
 
     def test_16_and_17_upload_consent_redirects_to_participant_data(self):
-        """16 & 17. La carga de consentimiento funciona y regresa a Datos del Participante."""
+        """16 & 17. La carga de consentimiento funciona y regresa a Participación en el Experimento."""
         url_upload = reverse('upload_consent_note', args=[self.exp1.pk, self.part1.pk])
         pdf_content = b'%PDF-1.4 test content'
         file = SimpleUploadedFile("consent.pdf", pdf_content, content_type="application/pdf")
         
         res = self.client.post(url_upload, {'consent_file': file})
         self.assertEqual(res.status_code, 200)
-        self.assertIn("Volver a Datos del Participante", res.content.decode('utf-8'))
+        self.assertIn("Volver a Participación en el Experimento", res.content.decode('utf-8'))
         target_url = reverse('participant_experiment_dicoms', args=[self.part1.pk, self.exp1.pk])
         self.assertIn(target_url, res.content.decode('utf-8'))
 

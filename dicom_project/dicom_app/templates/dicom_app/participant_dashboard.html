@@ -31,6 +31,18 @@
                         <h1 class="card-title">Listado de Participantes</h1>
                     </div>
 
+                    <!-- Flash Messages -->
+                    {% if messages %}
+                    <div class="mb-4">
+                        {% for message in messages %}
+                        <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags|default:'info' }}{% endif %} alert-dismissible fade show" role="alert" style="border-radius: 12px;">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
                     <!-- Search Bar -->
                     <form method="get" class="search-bar">
                         <input type="text" name="q" class="search-input" placeholder="Buscar por participantes"
@@ -45,9 +57,10 @@
                     <table class="custom-table">
                         <thead>
                             <tr>
-                                <th style="width: 45%;">Nombre del participante</th>
-                                <th style="width: 35%;">Última participación</th>
-                                <th style="text-align: right; width: 20%;">Experimentos</th>
+                                <th style="width: 42%;">Nombre del participante</th>
+                                <th style="width: 33%;">Última participación</th>
+                                <th style="width: 20%;">Experimentos</th>
+                                <th style="width: 5%; text-align: center;"></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -61,13 +74,16 @@
                                     N/A
                                     {% endif %}
                                 </td>
-                                <td style="text-align: right;">
+                                <td>
                                     <a href="{% url 'participant_experiments' participant.pk %}" class="action-link">Ver experimentos</a>
+                                </td>
+                                <td style="text-align: center;">
+                                    <button type="button" class="btn-remove-x" onclick="confirmDeleteParticipant('{{ participant.pk }}', '{{ participant.first_name|escapejs }} {{ participant.last_name|escapejs }}')" title="Eliminar participante">X</button>
                                 </td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="3" style="text-align: center; padding: 40px; color: #95a5a6;">
+                                <td colspan="4" style="text-align: center; padding: 40px; color: #95a5a6;">
                                     No se encontraron participantes.
                                 </td>
                             </tr>
@@ -78,6 +94,26 @@
                 </div>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Modal Confirmar Eliminación Participante -->
+<div id="modal-delete-participant" class="modal-overlay-custom">
+    <div class="modal-card-custom" style="max-width: 450px; text-align: center; padding: 2rem;">
+        <h3 class="mb-2" style="font-weight: 700; color: #000; font-size: 1.2rem;">
+            ¿Está seguro de que desea eliminar este participante?
+        </h3>
+        <p id="delete-participant-name" style="font-weight: 600; color: #1E6091; font-size: 1.05rem;" class="mb-2"></p>
+        <p style="color: #666; font-size: 0.95rem;" class="mb-4">
+            Esta acción no se puede deshacer. La eliminación del registro es permanente.
+        </p>
+        <form id="form-delete-participant" method="POST" action="">
+            {% csrf_token %}
+            <div class="d-flex justify-content-center gap-3">
+                <button type="button" onclick="closeDeleteParticipantModal()" class="btn btn-outline-secondary" style="border-radius: 8px; padding: 0.5rem 1.5rem; font-weight: 500;">Cancelar</button>
+                <button type="submit" class="btn" style="background-color: #DC3545; color: #fff; font-weight: 600; border-radius: 8px; padding: 0.5rem 1.5rem;">Eliminar</button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -99,5 +135,81 @@
     .table td {
         border-top: none;
     }
+
+    .btn-remove-x {
+        background: none;
+        border: none;
+        color: #DC3545;
+        font-weight: 700;
+        font-size: 1.15rem;
+        cursor: pointer;
+        padding: 0;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        transition: color 0.2s, background-color 0.2s, transform 0.15s;
+    }
+
+    .btn-remove-x:hover {
+        color: #a71d2a;
+        background-color: rgba(220, 53, 69, 0.12);
+        transform: scale(1.15);
+    }
+
+    .modal-overlay-custom {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.2s;
+    }
+
+    .modal-overlay-custom.active {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .modal-card-custom {
+        background: white;
+        padding: 24px;
+        border-radius: 16px;
+        width: 100%;
+        max-width: 500px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        transform: scale(0.95);
+        transition: transform 0.2s;
+    }
+
+    .modal-overlay-custom.active .modal-card-custom {
+        transform: scale(1);
+    }
 </style>
+
+<script>
+    function confirmDeleteParticipant(participantId, participantName) {
+        const modal = document.getElementById('modal-delete-participant');
+        const nameEl = document.getElementById('delete-participant-name');
+        const form = document.getElementById('form-delete-participant');
+        if (nameEl) nameEl.textContent = participantName;
+        if (form) form.action = `/participant/${participantId}/delete/`;
+        if (modal) modal.classList.add('active');
+    }
+
+    function closeDeleteParticipantModal() {
+        const modal = document.getElementById('modal-delete-participant');
+        if (modal) modal.classList.remove('active');
+    }
+</script>
 {% endblock %}

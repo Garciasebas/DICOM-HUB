@@ -247,12 +247,12 @@ class NavigationAndValidationTestCase(TestCase):
         res_target = self.client.get(target_url)
         self.assertEqual(res_target.status_code, 200)
         content_target = res_target.content.decode('utf-8')
-        self.assertIn('Datos del Participante', content_target)
+        self.assertIn('Participación en el Experimento', content_target)
         self.assertIn('Información del Participante', content_target)
 
     def test_17_flow_1_navigation_from_participants(self):
-        """TEST A: Flujo 1 desde Participantes -> Experimentos del Participante -> Datos del Participante"""
-        # 1. Access Datos del Participante without from_experiment (from Participants flow)
+        """TEST A: Flujo 1 desde Participantes -> Experimentos del Participante -> Participación en el Experimento"""
+        # 1. Access view without from_experiment (from Participants flow)
         url_part_exp = reverse('participant_experiments', kwargs={'participant_id': self.participant.pk})
         url_part_dicoms = reverse('participant_experiment_dicoms', kwargs={
             'participant_id': self.participant.pk,
@@ -268,14 +268,14 @@ class NavigationAndValidationTestCase(TestCase):
         self.assertIn('Participantes', content)
         self.assertIn(url_part_exp, content)
         self.assertIn('Experimentos del Participante', content)
-        self.assertIn('Datos del Participante', content)
+        self.assertIn('Participación en el Experimento', content)
 
         # 3. Verify Atrás button returns to Experimentos del Participante
         self.assertIn(f'href="{url_part_exp}"', content)
 
     def test_18_flow_2_navigation_from_experiments(self):
-        """TEST B: Flujo 2 desde Listado de Experimentos -> Detalle del Experimento -> Datos del Participante"""
-        # 1. Access Datos del Participante with from_experiment (from Experiments flow)
+        """TEST B: Flujo 2 desde Listado de Experimentos -> Detalle del Experimento -> Participación en el Experimento"""
+        # 1. Access view with from_experiment (from Experiments flow)
         url_exp_detail = reverse('experiment_detail', kwargs={'pk': self.experiment_origin.pk})
         url_part_dicoms = f"{reverse('participant_experiment_dicoms', kwargs={'participant_id': self.participant.pk, 'experiment_id': self.experiment_origin.pk})}?from_experiment={self.experiment_origin.pk}"
         res = self.client.get(url_part_dicoms)
@@ -288,10 +288,29 @@ class NavigationAndValidationTestCase(TestCase):
         self.assertIn('Listado de Experimentos', content)
         self.assertIn(url_exp_detail, content)
         self.assertIn('Detalle del Experimento', content)
-        self.assertIn('Datos del Participante', content)
+        self.assertIn('Participación en el Experimento', content)
 
         # 3. Verify Atrás button returns to Detalle del Experimento
         self.assertIn(f'href="{url_exp_detail}"', content)
+
+    def test_20_participacion_en_el_experimento_renaming(self):
+        """20. Comprueba que la vista muestra 'Participación en el Experimento' y YA NO muestra 'Datos del Participante' como título/cabecera."""
+        url_flow1 = reverse('participant_experiment_dicoms', kwargs={
+            'participant_id': self.participant.pk,
+            'experiment_id': self.experiment_origin.pk
+        })
+        res1 = self.client.get(url_flow1)
+        self.assertEqual(res1.status_code, 200)
+        html1 = res1.content.decode('utf-8')
+        self.assertIn("Participación en el Experimento", html1)
+        self.assertNotIn("Datos del Participante", html1)
+
+        url_flow2 = f"{url_flow1}?from_experiment={self.experiment_origin.pk}"
+        res2 = self.client.get(url_flow2)
+        self.assertEqual(res2.status_code, 200)
+        html2 = res2.content.decode('utf-8')
+        self.assertIn("Participación en el Experimento", html2)
+        self.assertNotIn("Datos del Participante", html2)
 
     def test_19_participant_dashboard_header_and_ver_experimentos_link(self):
         """19. En Listado de Participantes se muestra 'Experimentos' y 'Ver experimentos' apuntando a participant_experiments."""
@@ -315,3 +334,67 @@ class NavigationAndValidationTestCase(TestCase):
         # 4. Verify accessing participant_experiments works correctly
         res_part_exp = self.client.get(target_url)
         self.assertEqual(res_part_exp.status_code, 200)
+
+    def test_21_dicom_file_detail_navigation_from_experiments(self):
+        """21. Acceder al detalle DICOM desde Experimentos conserva el breadcrumb de Experimentos y el botón Atrás."""
+        # 1. Access participant_experiment_dicoms with from_experiment
+        url_part_dicoms = f"{reverse('participant_experiment_dicoms', kwargs={'participant_id': self.participant.pk, 'experiment_id': self.experiment_origin.pk})}?from_experiment={self.experiment_origin.pk}"
+        res_part_dicoms = self.client.get(url_part_dicoms)
+        self.assertEqual(res_part_dicoms.status_code, 200)
+        content_part_dicoms = res_part_dicoms.content.decode('utf-8')
+
+        # Verify details link includes ?from_experiment=...
+        dicom_detail_url_with_context = f"{reverse('dicomfile_detail', kwargs={'pk': self.dicom_file.pk})}?from_experiment={self.experiment_origin.pk}"
+        self.assertIn(dicom_detail_url_with_context, content_part_dicoms)
+
+        # 2. Access DICOM file detail view with from_experiment
+        res_dicom_detail = self.client.get(dicom_detail_url_with_context)
+        self.assertEqual(res_dicom_detail.status_code, 200)
+        content_detail = res_dicom_detail.content.decode('utf-8')
+
+        # 3. Verify Breadcrumb for Flow Experimentos
+        url_dash = reverse('dashboard')
+        url_exp_detail = reverse('experiment_detail', kwargs={'pk': self.experiment_origin.pk})
+        self.assertIn(url_dash, content_detail)
+        self.assertIn('Listado de Experimentos', content_detail)
+        self.assertIn(url_exp_detail, content_detail)
+        self.assertIn('Detalle del Experimento', content_detail)
+        self.assertIn(url_part_dicoms, content_detail)
+        self.assertIn('Participación en el Experimento', content_detail)
+        self.assertIn('Detalle de Archivo DICOM', content_detail)
+
+        # 4. Verify Atrás button points back to participant_experiment_dicoms with from_experiment
+        self.assertIn(f'href="{url_part_dicoms}"', content_detail)
+
+    def test_22_dicom_file_detail_navigation_from_participants(self):
+        """22. Acceder al detalle DICOM desde Participantes conserva el breadcrumb de Participantes y el botón Atrás."""
+        # 1. Access participant_experiment_dicoms without from_experiment
+        url_part_dicoms = reverse('participant_experiment_dicoms', kwargs={'participant_id': self.participant.pk, 'experiment_id': self.experiment_origin.pk})
+        res_part_dicoms = self.client.get(url_part_dicoms)
+        self.assertEqual(res_part_dicoms.status_code, 200)
+        content_part_dicoms = res_part_dicoms.content.decode('utf-8')
+
+        # Verify details link points to dicomfile_detail without from_experiment
+        dicom_detail_url = reverse('dicomfile_detail', kwargs={'pk': self.dicom_file.pk})
+        self.assertIn(dicom_detail_url, content_part_dicoms)
+        self.assertNotIn(f"{dicom_detail_url}?from_experiment", content_part_dicoms)
+
+        # 2. Access DICOM file detail view without from_experiment
+        res_dicom_detail = self.client.get(dicom_detail_url)
+        self.assertEqual(res_dicom_detail.status_code, 200)
+        content_detail = res_dicom_detail.content.decode('utf-8')
+
+        # 3. Verify Breadcrumb for Flow Participantes
+        url_part_list = reverse('participant_list')
+        url_part_exp = reverse('participant_experiments', kwargs={'participant_id': self.participant.pk})
+        self.assertIn(url_part_list, content_detail)
+        self.assertIn('Participantes', content_detail)
+        self.assertIn(url_part_exp, content_detail)
+        self.assertIn('Experimentos del Participante', content_detail)
+        self.assertIn(url_part_dicoms, content_detail)
+        self.assertIn('Participación en el Experimento', content_detail)
+        self.assertIn('Detalle de Archivo DICOM', content_detail)
+
+        # 4. Verify Atrás button points back to participant_experiment_dicoms without from_experiment
+        self.assertIn(f'href="{url_part_dicoms}"', content_detail)
+
