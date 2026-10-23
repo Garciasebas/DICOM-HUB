@@ -2,7 +2,7 @@ import pydicom
 from django.shortcuts import render, get_object_or_404, redirect
 from django.db import models, transaction, connection
 from django.db.models import Q
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.views.generic import DetailView, CreateView, DeleteView
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse, HttpResponseRedirect
 from django.views.decorators.http import require_POST
@@ -124,8 +124,31 @@ class DicomFileDetailView(LoginRequiredMixin, DetailView):
             context['participant_id'] = self.object.participant.id
 
         from_experiment_id = self.request.GET.get('from_experiment')
+        from_exp = None
         if from_experiment_id:
-            context['from_experiment'] = get_user_experiments(self.request.user).filter(pk=from_experiment_id).first()
+            try:
+                from_experiment_id = int(from_experiment_id)
+                user_exps = get_user_experiments(self.request.user)
+                if self.object.experiment:
+                    if self.object.experiment.pk == from_experiment_id:
+                        from_exp = user_exps.filter(pk=from_experiment_id).first()
+                else:
+                    from_exp = user_exps.filter(pk=from_experiment_id).first()
+            except (ValueError, TypeError):
+                from_exp = None
+        context['from_experiment'] = from_exp
+
+        from_group_id = self.request.GET.get('from_group') or self.request.GET.get('group_id')
+        from_group = None
+        if from_group_id:
+            try:
+                from_group_id = int(from_group_id)
+                target_experiment = self.object.experiment or context.get('from_experiment')
+                if target_experiment and get_user_experiments(self.request.user).filter(pk=target_experiment.pk).exists():
+                    from_group = target_experiment.groups.filter(pk=from_group_id).first()
+            except (ValueError, TypeError):
+                from_group = None
+        context['from_group'] = from_group
 
         # Optimization: Fetch all tags efficiently
         # We fetch all tags in one query to avoid N+1 issues and multiple hits
@@ -170,7 +193,11 @@ class DicomFileDetailView(LoginRequiredMixin, DetailView):
                     'status': 'success',
                     'patient_name': self.object.patient_name
                 })
-            return redirect('dicomfile_detail', pk=self.object.pk)
+            redirect_url = reverse('dicomfile_detail', kwargs={'pk': self.object.pk})
+            query = request.GET.urlencode()
+            if query:
+                redirect_url = f"{redirect_url}?{query}"
+            return redirect(redirect_url)
         else:
             if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.META.get('HTTP_ACCEPT', ''):
                 return JsonResponse({
@@ -184,18 +211,67 @@ class DicomFileDetailView(LoginRequiredMixin, DetailView):
 
 class DicomFileDeleteView(LoginRequiredMixin, DeleteView):
     model = DicomFile
-    template_name = 'dicomfile_confirm_delete.html'
+    template_name = 'dicom_app/dicomfile_confirm_delete.html'
 
     def get_queryset(self):
         return get_user_dicom_files(self.request.user)
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        from_group_id = self.request.GET.get('from_group') or self.request.POST.get('from_group')
+        from_group = None
+        if from_group_id and self.object.experiment:
+            try:
+                from_group_id = int(from_group_id)
+                if get_user_experiments(self.request.user).filter(pk=self.object.experiment.pk).exists():
+                    from_group = self.object.experiment.groups.filter(pk=from_group_id).first()
+            except (ValueError, TypeError):
+                from_group = None
+        context['from_group'] = from_group
+
+        from_experiment_id = self.request.GET.get('from_experiment') or self.request.POST.get('from_experiment')
+        from_experiment = None
+        if from_experiment_id:
+            try:
+                from_experiment_id = int(from_experiment_id)
+                user_exps = get_user_experiments(self.request.user)
+                if self.object.experiment:
+                    if self.object.experiment.pk == from_experiment_id:
+                        from_experiment = user_exps.filter(pk=from_experiment_id).first()
+                else:
+                    from_experiment = user_exps.filter(pk=from_experiment_id).first()
+            except (ValueError, TypeError):
+                from_experiment = None
+        context['from_experiment'] = from_experiment
+        return context
+
     def get_success_url(self):
         # Redirect to the participant's DICOM data page (Datos del Participante)
         if self.object.participant and self.object.experiment:
-            return reverse_lazy('participant_experiment_dicoms', kwargs={
+            base_url = reverse_lazy('participant_experiment_dicoms', kwargs={
                 'participant_id': self.object.participant.id,
                 'experiment_id': self.object.experiment.id
             })
+            from_group_id = self.request.POST.get('from_group') or self.request.GET.get('from_group')
+            if from_group_id:
+                try:
+                    from_group_id = int(from_group_id)
+                    if get_user_experiments(self.request.user).filter(pk=self.object.experiment.pk).exists():
+                        if self.object.experiment.groups.filter(pk=from_group_id).exists():
+                            return f"{base_url}?from_group={from_group_id}"
+                except (ValueError, TypeError):
+                    pass
+
+            from_exp_id = self.request.POST.get('from_experiment') or self.request.GET.get('from_experiment')
+            if from_exp_id:
+                try:
+                    from_exp_id = int(from_exp_id)
+                    if (not self.object.experiment or self.object.experiment.pk == from_exp_id) and get_user_experiments(self.request.user).filter(pk=from_exp_id).exists():
+                        return f"{base_url}?from_experiment={from_exp_id}"
+                except (ValueError, TypeError):
+                    pass
+
+            return str(base_url)
         elif self.object.participant:
             return reverse_lazy('participant_experiments', kwargs={'participant_id': self.object.participant.id})
         return reverse_lazy('participant_dashboard')
@@ -467,6 +543,7 @@ class ExperimentDetailView(LoginRequiredMixin, DetailView):
         context['available_members'] = get_user_members(self.request.user).exclude(
             id__in=experiment.members.values_list('id', flat=True)
         )
+        context['role_choices'] = Member.ROLE_CHOICES
         return context
 
 class ExperimentDeleteView(LoginRequiredMixin, DeleteView):
@@ -733,6 +810,15 @@ def participant_experiment_dicoms(request, participant_id, experiment_id):
     if from_experiment_id:
         from_experiment = get_user_experiments(request.user).filter(pk=from_experiment_id).first()
 
+    from_group_id = request.GET.get('from_group') or request.GET.get('group_id')
+    from_group = None
+    if from_group_id:
+        try:
+            from_group_id = int(from_group_id)
+            from_group = experiment.groups.filter(pk=from_group_id).first()
+        except (ValueError, TypeError):
+            from_group = None
+
     return render(request, 'dicom_app/participant_experiment_dicoms.html', {
         'participant': participant,
         'experiment': experiment,
@@ -740,6 +826,7 @@ def participant_experiment_dicoms(request, participant_id, experiment_id):
         'consent_file': consent_file,
         'dicom_files': dicom_files,
         'from_experiment': from_experiment,
+        'from_group': from_group,
     })
 
 @login_required
@@ -839,6 +926,7 @@ def create_group_ajax(request, pk):
         experiment = get_object_or_404(get_user_experiments(request.user), pk=pk)
         data = json.loads(request.body)
         name = data.get('name', '').strip()
+        description = data.get('description', '').strip()
 
         if not name:
             return JsonResponse({'status': 'error', 'message': 'El nombre del grupo es obligatorio.'}, status=400)
@@ -849,12 +937,13 @@ def create_group_ajax(request, pk):
                 'message': f"Ya existe un grupo llamado '{name}' en este experimento."
             }, status=400)
 
-        group = ParticipantGroup.objects.create(experiment=experiment, name=name)
+        group = ParticipantGroup.objects.create(experiment=experiment, name=name, description=description)
 
         return JsonResponse({
             'status': 'success',
             'id': group.id,
-            'name': group.name
+            'name': group.name,
+            'description': group.description
         })
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
@@ -898,16 +987,478 @@ def delete_group_ajax(request, pk, group_id):
         experiment = get_object_or_404(get_user_experiments(request.user), pk=pk)
         group = get_object_or_404(ParticipantGroup, pk=group_id, experiment=experiment)
 
+        if ExperimentParticipant.objects.filter(experiment=experiment, group=group).exists():
+            return JsonResponse({
+                'status': 'error',
+                'message': 'No se puede eliminar el grupo porque contiene participantes asociados.'
+            }, status=400)
+
         group.delete()
 
         return JsonResponse({
             'status': 'success',
-            'message': 'Grupo eliminado exitosamente.'
+            'message': 'Grupo eliminado exitosamente.',
+            'group_id': group_id
         })
     except Http404:
         raise
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@login_required
+def group_detail(request, pk, group_id):
+    experiment = get_object_or_404(get_user_experiments(request.user), pk=pk)
+    group = get_object_or_404(ParticipantGroup, pk=group_id, experiment=experiment)
+
+    experiment_participants = (
+        ExperimentParticipant.objects
+        .filter(experiment=experiment, group=group)
+        .select_related('participant')
+        .order_by('joined_at')
+    )
+
+    context = {
+        'experiment': experiment,
+        'group': group,
+        'experiment_participants': experiment_participants,
+    }
+    return render(request, 'dicom_app/group_detail.html', context)
+
+@require_POST
+@login_required
+def update_group_name_ajax(request, pk, group_id):
+    try:
+        experiment = get_object_or_404(get_user_experiments(request.user), pk=pk)
+        group = get_object_or_404(ParticipantGroup, pk=group_id, experiment=experiment)
+        data = json.loads(request.body)
+        name = data.get('name', '').strip()
+
+        if not name:
+            return JsonResponse({'status': 'error', 'message': 'El nombre del grupo no puede estar vacío.'}, status=400)
+
+        if ParticipantGroup.objects.filter(experiment=experiment, name__iexact=name).exclude(pk=group.pk).exists():
+            return JsonResponse({
+                'status': 'error',
+                'message': f"Ya existe un grupo llamado '{name}' en este experimento."
+            }, status=400)
+
+        group.name = name
+        group.save()
+
+        return JsonResponse({
+            'status': 'success',
+            'name': group.name
+        })
+    except Http404:
+        raise
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@require_POST
+@login_required
+def update_group_description_ajax(request, pk, group_id):
+    try:
+        experiment = get_object_or_404(get_user_experiments(request.user), pk=pk)
+        group = get_object_or_404(ParticipantGroup, pk=group_id, experiment=experiment)
+        data = json.loads(request.body)
+        description = data.get('description', '').strip()
+
+        group.description = description
+        group.save()
+
+        return JsonResponse({
+            'status': 'success',
+            'description': group.description
+        })
+    except Http404:
+        raise
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+def get_unshared_filepaths_for_deletion(consent_qs, dicom_qs):
+    """
+    Identifica las rutas de archivos físicos pertenecientes a los querysets de ConsentFile
+    y DicomFile dados que NO estén compartidos por ningún otro registro activo en la base de datos.
+    """
+    cf_ids = set(consent_qs.values_list('id', flat=True)) if consent_qs is not None else set()
+    df_ids = set(dicom_qs.values_list('id', flat=True)) if dicom_qs is not None else set()
+
+    files_to_delete = []
+
+    if consent_qs is not None:
+        for cf in consent_qs:
+            if cf.file and hasattr(cf.file, 'path') and cf.file.name:
+                try:
+                    rel_name = cf.file.name
+                    shared_cf = ConsentFile.objects.exclude(id__in=cf_ids).filter(file=rel_name).exists()
+                    shared_df = DicomFile.objects.exclude(id__in=df_ids).filter(file=rel_name).exists()
+                    if not shared_cf and not shared_df:
+                        files_to_delete.append(cf.file.path)
+                except Exception:
+                    pass
+
+    if dicom_qs is not None:
+        for df in dicom_qs:
+            if df.file and hasattr(df.file, 'path') and df.file.name:
+                try:
+                    rel_name = df.file.name
+                    shared_cf = ConsentFile.objects.exclude(id__in=cf_ids).filter(file=rel_name).exists()
+                    shared_df = DicomFile.objects.exclude(id__in=df_ids).filter(file=rel_name).exists()
+                    if not shared_cf and not shared_df:
+                        files_to_delete.append(df.file.path)
+                except Exception:
+                    pass
+
+    return files_to_delete
+
+
+def safely_delete_physical_files(file_paths):
+    """
+    Elimina físicamente los archivos especificados. Si ocurre un error de E/S,
+    lanza la excepción para permitir que la transacción de base de datos se revierta.
+    """
+    for filepath in file_paths:
+        if filepath and os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except OSError as err:
+                logger.error(f"Error borrando archivo físico {filepath}: {err}")
+                raise err
+
+
+@require_POST
+@login_required
+def remove_group_participant_ajax(request, pk, group_id, participant_id):
+    try:
+        experiment = get_object_or_404(get_user_experiments(request.user), pk=pk)
+        group = get_object_or_404(ParticipantGroup, pk=group_id, experiment=experiment)
+        ep = get_object_or_404(ExperimentParticipant, experiment=experiment, group=group, participant_id=participant_id)
+        participant = ep.participant
+
+        consent_qs = ConsentFile.objects.filter(participant=participant, experiment=experiment)
+        dicom_qs = DicomFile.objects.filter(participant=participant, experiment=experiment)
+
+        files_to_delete = get_unshared_filepaths_for_deletion(consent_qs, dicom_qs)
+
+        with transaction.atomic():
+            consent_qs.delete()
+
+            for df in dicom_qs:
+                df.tags.all().delete()
+            dicom_qs.delete()
+
+            ep.delete()
+
+            safely_delete_physical_files(files_to_delete)
+
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Participante desvinculado del grupo exitosamente.',
+            'participant_id': participant_id
+        })
+    except Http404:
+        raise
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@login_required
+def add_participant_to_group(request, pk, group_id):
+    experiment = get_object_or_404(get_user_experiments(request.user), pk=pk)
+    group = get_object_or_404(ParticipantGroup, pk=group_id, experiment=experiment)
+
+    if request.method == 'GET':
+        is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('action') == 'search'
+        q = request.GET.get('q', '').strip()
+
+        if is_ajax:
+            user_participants = get_user_participants(request.user)
+            if q:
+                q_parts = q.split()
+                if len(q_parts) >= 2:
+                    qs = user_participants.filter(
+                        (Q(first_name__icontains=q_parts[0]) & Q(last_name__icontains=q_parts[1])) |
+                        (Q(first_name__icontains=q) | Q(last_name__icontains=q))
+                    )
+                else:
+                    qs = user_participants.filter(
+                        Q(first_name__icontains=q) | Q(last_name__icontains=q)
+                    )
+            else:
+                qs = user_participants.all()
+
+            qs = qs.order_by('first_name', 'last_name')[:50]
+
+            participants_list = []
+            for p in qs:
+                ep = ExperimentParticipant.objects.filter(experiment=experiment, participant=p).first()
+                if ep:
+                    if ep.group_id == group.id:
+                        status_code = 'in_current_group'
+                        status_text = 'Ya pertenece a este grupo'
+                        other_group_name = None
+                    elif ep.group is None:
+                        status_code = 'in_experiment_no_group'
+                        status_text = 'En el experimento, sin grupo asignado'
+                        other_group_name = None
+                    else:
+                        status_code = 'in_other_group'
+                        status_text = f"Asignado al grupo '{ep.group.name}' en este experimento"
+                        other_group_name = ep.group.name
+                else:
+                    status_code = 'not_in_experiment'
+                    status_text = 'Disponible para asociar'
+                    other_group_name = None
+
+                participants_list.append({
+                    'id': p.id,
+                    'first_name': p.first_name,
+                    'last_name': p.last_name,
+                    'status_code': status_code,
+                    'status_text': status_text,
+                    'other_group_name': other_group_name
+                })
+
+            return JsonResponse({'status': 'success', 'participants': participants_list})
+
+        return render(request, 'dicom_app/add_participant_group.html', {
+            'experiment': experiment,
+            'group': group,
+            'form_data': {},
+        })
+
+    if request.method == 'POST':
+        mode = request.POST.get('mode', 'create')
+
+        if mode == 'create':
+            raw_full_name = request.POST.get('full_name', '').strip()
+            first_name = request.POST.get('first_name', '').strip()
+            last_name = request.POST.get('last_name', '').strip()
+
+            if not first_name and not last_name and raw_full_name:
+                parts = " ".join(raw_full_name.split()).split(' ', 1)
+                first_name = parts[0]
+                last_name = parts[1] if len(parts) > 1 else ''
+
+            birth_date = request.POST.get('birth_date', '').strip() or None
+            sex = request.POST.get('sex', '').strip() or None
+            email = request.POST.get('email', '').strip()
+            phone = request.POST.get('phone', '').strip()
+            details = request.POST.get('details', '').strip()
+
+            if first_name:
+                first_name = " ".join(first_name.split()).title()
+            if last_name:
+                last_name = " ".join(last_name.split()).title()
+
+            if not first_name or not last_name:
+                msg = 'El nombre y el apellido del participante son obligatorios.'
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({'status': 'error', 'message': msg}, status=400)
+                messages.error(request, msg)
+                return render(request, 'dicom_app/add_participant_group.html', {
+                    'experiment': experiment,
+                    'group': group,
+                    'active_tab': 'create',
+                    'form_data': request.POST,
+                    'error_msg': msg
+                })
+
+            existing_p = Participant.objects.filter(
+                first_name__iexact=first_name,
+                last_name__iexact=last_name
+            ).first()
+            if existing_p:
+                msg = f"Ya existe un participante registrado con el nombre '{first_name} {last_name}'. Si desea asociarlo, utilice la opción 'Agregar participante existente'."
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({'status': 'error', 'message': msg}, status=400)
+                messages.error(request, msg)
+                return render(request, 'dicom_app/add_participant_group.html', {
+                    'experiment': experiment,
+                    'group': group,
+                    'active_tab': 'create',
+                    'form_data': request.POST,
+                    'error_msg': msg
+                })
+
+            consent_file_obj = request.FILES.get('consent_file')
+            if consent_file_obj:
+                if not consent_file_obj.name.lower().endswith('.pdf'):
+                    msg = 'La nota de consentimiento debe ser un archivo PDF.'
+                    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                        return JsonResponse({'status': 'error', 'message': msg}, status=400)
+                    messages.error(request, msg)
+                    return render(request, 'dicom_app/add_participant_group.html', {
+                        'experiment': experiment,
+                        'group': group,
+                        'active_tab': 'create',
+                        'form_data': request.POST,
+                        'error_msg': msg
+                    })
+                try:
+                    consent_file_obj.seek(0)
+                    header = consent_file_obj.read(5)
+                    consent_file_obj.seek(0)
+                    if header != b'%PDF-':
+                        msg = 'El archivo de consentimiento no es un PDF válido.'
+                        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                            return JsonResponse({'status': 'error', 'message': msg}, status=400)
+                        messages.error(request, msg)
+                        return render(request, 'dicom_app/add_participant_group.html', {
+                            'experiment': experiment,
+                            'group': group,
+                            'active_tab': 'create',
+                            'form_data': request.POST,
+                            'error_msg': msg
+                        })
+                except Exception:
+                    msg = 'Error al verificar la nota de consentimiento. Asegúrese de que sea un PDF válido.'
+                    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                        return JsonResponse({'status': 'error', 'message': msg}, status=400)
+                    messages.error(request, msg)
+                    return render(request, 'dicom_app/add_participant_group.html', {
+                        'experiment': experiment,
+                        'group': group,
+                        'active_tab': 'create',
+                        'form_data': request.POST,
+                        'error_msg': msg
+                    })
+
+            dicom_files = request.FILES.getlist('dicom_files')
+            if not dicom_files and request.FILES.get('dicom_file'):
+                dicom_files = [request.FILES.get('dicom_file')]
+
+            try:
+                with transaction.atomic():
+                    subject_id = f"SUB-{uuid.uuid4().hex[:6].upper()}"
+                    participant = Participant.objects.create(
+                        subject_id=subject_id,
+                        first_name=first_name,
+                        last_name=last_name,
+                        birth_date=birth_date,
+                        sex=sex,
+                        email=email,
+                        phone=phone,
+                        details=details
+                    )
+
+                    ExperimentParticipant.objects.create(
+                        experiment=experiment,
+                        participant=participant,
+                        group=group
+                    )
+
+                    if consent_file_obj:
+                        ConsentFile.objects.create(
+                            participant=participant,
+                            experiment=experiment,
+                            file=consent_file_obj,
+                            original_filename=consent_file_obj.name,
+                            file_size=consent_file_obj.size
+                        )
+
+                    processed_count = 0
+                    dicom_errors = []
+                    for df in dicom_files:
+                        if not df.name.lower().endswith('.dcm'):
+                            dicom_errors.append(f"Archivo no válido: {df.name}. Solo se permiten archivos DICOM con extensión .dcm.")
+                            continue
+                        try:
+                            process_dicom_file(df, participant=participant, experiment=experiment)
+                            processed_count += 1
+                        except Exception as e:
+                            dicom_errors.append(f"Error procesando {df.name}: {str(e)}")
+
+                if dicom_errors:
+                    msg = f"Participante creado. Se procesaron {processed_count} de {len(dicom_files)} archivos DICOM. Errores: {'; '.join(dicom_errors)}"
+                    messages.warning(request, msg)
+                else:
+                    messages.success(request, f"Participante '{participant.first_name} {participant.last_name}' creado y agregado al grupo exitosamente.")
+
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'status': 'success',
+                        'message': 'Participante creado exitosamente.',
+                        'redirect_url': reverse('group_detail', kwargs={'pk': pk, 'group_id': group_id})
+                    })
+                return redirect('group_detail', pk=pk, group_id=group_id)
+
+            except Exception as e:
+                logger.error(f"Error al crear participante: {e}")
+                msg = f"Ocurrió un error al guardar el participante: {str(e)}"
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({'status': 'error', 'message': msg}, status=500)
+                messages.error(request, msg)
+                return render(request, 'dicom_app/add_participant_group.html', {
+                    'experiment': experiment,
+                    'group': group,
+                    'active_tab': 'create',
+                    'form_data': request.POST,
+                    'error_msg': msg
+                })
+
+        elif mode == 'existing':
+            participant_id = request.POST.get('participant_id')
+            confirm_move = request.POST.get('confirm_move') in ['true', '1', True]
+
+            if not participant_id:
+                msg = "Debe seleccionar un participante de la lista."
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({'status': 'error', 'message': msg}, status=400)
+                messages.error(request, msg)
+                return redirect(f"{reverse('add_participant_to_group', kwargs={'pk': pk, 'group_id': group_id})}?tab=existing")
+
+            participant = get_object_or_404(get_user_participants(request.user), pk=participant_id)
+
+            ep = ExperimentParticipant.objects.filter(experiment=experiment, participant=participant).first()
+
+            if ep:
+                if ep.group_id == group.id:
+                    msg = f"El participante '{participant.first_name} {participant.last_name}' ya pertenece a este grupo."
+                    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                        return JsonResponse({'status': 'info', 'message': msg})
+                    messages.info(request, msg)
+                    return redirect('group_detail', pk=pk, group_id=group_id)
+                elif ep.group is None:
+                    ep.group = group
+                    ep.save()
+                    msg = f"Participante '{participant.first_name} {participant.last_name}' asignado al grupo '{group.name}'."
+                    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                        return JsonResponse({'status': 'success', 'message': msg, 'redirect_url': reverse('group_detail', kwargs={'pk': pk, 'group_id': group_id})})
+                    messages.success(request, msg)
+                    return redirect('group_detail', pk=pk, group_id=group_id)
+                else:
+                    if not confirm_move:
+                        msg = f"El participante '{participant.first_name} {participant.last_name}' ya está asignado al grupo '{ep.group.name}'. Debe confirmar para moverlo."
+                        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                            return JsonResponse({
+                                'status': 'confirm_required',
+                                'participant_id': participant.id,
+                                'participant_name': f"{participant.first_name} {participant.last_name}",
+                                'old_group_name': ep.group.name,
+                                'message': msg
+                            })
+                        messages.warning(request, msg)
+                        return redirect(f"{reverse('add_participant_to_group', kwargs={'pk': pk, 'group_id': group_id})}?confirm_id={participant.id}")
+                    else:
+                        old_group_name = ep.group.name
+                        ep.group = group
+                        ep.save()
+                        msg = f"Participante '{participant.first_name} {participant.last_name}' movido del grupo '{old_group_name}' al grupo '{group.name}'."
+                        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                            return JsonResponse({'status': 'success', 'message': msg, 'redirect_url': reverse('group_detail', kwargs={'pk': pk, 'group_id': group_id})})
+                        messages.success(request, msg)
+                        return redirect('group_detail', pk=pk, group_id=group_id)
+            else:
+                ExperimentParticipant.objects.create(
+                    experiment=experiment,
+                    participant=participant,
+                    group=group
+                )
+                msg = f"Participante '{participant.first_name} {participant.last_name}' agregado al grupo '{group.name}' exitosamente."
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({'status': 'success', 'message': msg, 'redirect_url': reverse('group_detail', kwargs={'pk': pk, 'group_id': group_id})})
+                messages.success(request, msg)
+                return redirect('group_detail', pk=pk, group_id=group_id)
 
 @require_POST
 @login_required
@@ -1084,6 +1635,10 @@ def create_member_ajax(request):
         if not clean_full_name or not role:
             return JsonResponse({'status': 'error', 'message': 'Nombre y rol son obligatorios.'}, status=400)
 
+        allowed_roles = [choice[0] for choice in Member.ROLE_CHOICES]
+        if role not in allowed_roles:
+            return JsonResponse({'status': 'error', 'message': 'El rol seleccionado no es válido.'}, status=400)
+
         parts = clean_full_name.split(' ', 1)
         first_name = parts[0].title()
         last_name = parts[1].title() if len(parts) > 1 else ''
@@ -1247,43 +1802,21 @@ def remove_participant_from_experiment(request, pk, participant_id):
         if participant not in experiment.participants.all():
             return JsonResponse({'status': 'error', 'message': 'El participante no está asociado a este experimento.'}, status=400)
 
-        files_to_delete = []
+        consent_qs = ConsentFile.objects.filter(participant=participant, experiment=experiment)
+        dicom_qs = DicomFile.objects.filter(participant=participant, experiment=experiment)
+
+        files_to_delete = get_unshared_filepaths_for_deletion(consent_qs, dicom_qs)
 
         with transaction.atomic():
-            # 1. Consent Files
-            consent_qs = ConsentFile.objects.filter(participant=participant, experiment=experiment)
-            for cf in consent_qs:
-                if cf.file and hasattr(cf.file, 'path'):
-                    try:
-                        files_to_delete.append(cf.file.path)
-                    except Exception:
-                        pass
             consent_qs.delete()
 
-            # 2. DICOM Files
-            dicom_qs = DicomFile.objects.filter(participant=participant, experiment=experiment)
             for df in dicom_qs:
-                if df.file and hasattr(df.file, 'path'):
-                    try:
-                        files_to_delete.append(df.file.path)
-                    except Exception:
-                        pass
+                df.tags.all().delete()
             dicom_qs.delete()
 
-            # 3. Remove M2M relation (ExperimentParticipant)
             experiment.participants.remove(participant)
-            # Note: Participant object remains intact in database even with 0 experiments.
 
-            # 5. Delete physical files on_commit
-            def cleanup_files():
-                for filepath in files_to_delete:
-                    if filepath and os.path.exists(filepath):
-                        try:
-                            os.remove(filepath)
-                        except Exception as err:
-                            logger.error(f"Error borrando archivo físico {filepath}: {err}")
-
-            transaction.on_commit(cleanup_files)
+            safely_delete_physical_files(files_to_delete)
 
         return JsonResponse({'status': 'success', 'message': 'Participante quitado del experimento exitosamente.'})
     except Exception as e:
@@ -1312,30 +1845,52 @@ def remove_member_from_experiment(request, pk, member_id):
 @login_required
 def delete_participant(request, participant_id):
     """
-    Elimina un participante del sistema únicamente cuando no posee experimentos,
-    participaciones, archivos DICOM ni notas de consentimiento asociadas.
+    Elimina un participante del sistema cuando no tiene asociaciones activas a experimentos.
+    Si el participante no pertenece a ningún experimento, elimina también sus archivos
+    DICOM y notas de consentimiento asociadas (incluidos registros residuales de experimentos anteriores)
+    de forma segura (tanto en BD como físicamente, comprobando que no estén compartidos).
     Conserva intactos los usuarios de Django (auth.User).
     """
     participant = get_object_or_404(get_user_participants(request.user), pk=participant_id)
 
-    reasons = []
+    # Caso A: El participante pertenece a uno o más experimentos
     if participant.experiment_participants.exists():
-        reasons.append("pertenece a uno o más experimentos")
-    if participant.dicom_files.exists():
-        reasons.append("tiene archivos DICOM asociados")
-    if participant.consent_files.exists():
-        reasons.append("tiene notas de consentimiento asociadas")
-
-    if reasons:
-        reason_str = ", ".join(reasons)
-        error_msg = f"No se puede eliminar este participante porque tiene información asociada: {reason_str}."
+        error_msg = "No se puede eliminar este participante porque todavía pertenece a uno o más experimentos. Primero debe eliminar sus asociaciones con los experimentos."
         if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.META.get('HTTP_ACCEPT', ''):
             return JsonResponse({'status': 'error', 'message': error_msg}, status=400)
         messages.error(request, error_msg)
         return redirect('participant_dashboard')
 
-    with transaction.atomic():
-        participant.delete()
+    # Caso B / C: El participante no tiene asociaciones en ningún experimento.
+    # Se eliminan los archivos propios y residuales que correspondan, junto con sus
+    # metadatos y archivos físicos (siempre que no estén compartidos por otros registros válidos).
+    consent_qs = participant.consent_files.all()
+    dicom_qs = participant.dicom_files.all()
+
+    files_to_delete = get_unshared_filepaths_for_deletion(consent_qs, dicom_qs)
+
+    try:
+        with transaction.atomic():
+            # 1. Eliminar ConsentFiles
+            consent_qs.delete()
+
+            # 2. Eliminar DicomTags y DicomFiles
+            for df in dicom_qs:
+                df.tags.all().delete()
+            dicom_qs.delete()
+
+            # 3. Eliminar registro del participante
+            participant.delete()
+
+            # 4. Eliminar archivos físicos no compartidos (revierte la transacción si falla)
+            safely_delete_physical_files(files_to_delete)
+
+    except Exception as e:
+        error_msg = f"Ocurrió un error al intentar eliminar el participante: {str(e)}"
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.META.get('HTTP_ACCEPT', ''):
+            return JsonResponse({'status': 'error', 'message': error_msg}, status=500)
+        messages.error(request, error_msg)
+        return redirect('participant_dashboard')
 
     success_msg = "Participante eliminado correctamente."
     if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.META.get('HTTP_ACCEPT', ''):

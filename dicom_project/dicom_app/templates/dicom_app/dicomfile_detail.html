@@ -14,7 +14,16 @@
         <div class="col-12 col-xl-10">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb breadcrumb-custom">
-                    {% if from_experiment %}
+                    {% if from_group %}
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="breadcrumb-link">Listado de Experimentos</a></li>
+                    {% if dicom_file.experiment %}
+                    <li class="breadcrumb-item"><a href="{% url 'experiment_detail' dicom_file.experiment.pk %}" class="breadcrumb-link">Detalle del Experimento</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'group_detail' dicom_file.experiment.pk from_group.pk %}" class="breadcrumb-link">Detalle del Grupo: {{ from_group.name }}</a></li>
+                    {% endif %}
+                    {% if dicom_file.participant and dicom_file.experiment %}
+                    <li class="breadcrumb-item"><a href="{% url 'participant_experiment_dicoms' dicom_file.participant.pk dicom_file.experiment.pk %}?from_group={{ from_group.pk }}" class="breadcrumb-link">Participación en el Experimento</a></li>
+                    {% endif %}
+                    {% elif from_experiment %}
                     <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="breadcrumb-link">Listado de Experimentos</a></li>
                     <li class="breadcrumb-item"><a href="{% url 'experiment_detail' from_experiment.pk %}" class="breadcrumb-link">Detalle del Experimento</a></li>
                     {% if dicom_file.participant and dicom_file.experiment %}
@@ -52,7 +61,21 @@
                             <button type="button" class="btn-delete-red" data-bs-toggle="modal" data-bs-target="#deleteDicomModal">
                                 <i class="fas fa-trash-can"></i> Eliminar
                             </button>
-                            {% if from_experiment %}
+                            {% if from_group %}
+                                {% if dicom_file.participant and dicom_file.experiment %}
+                                <a href="{% url 'participant_experiment_dicoms' dicom_file.participant.pk dicom_file.experiment.pk %}?from_group={{ from_group.pk }}" class="btn-cancel-outline">
+                                    ← Atrás
+                                </a>
+                                {% elif dicom_file.experiment %}
+                                <a href="{% url 'group_detail' dicom_file.experiment.pk from_group.pk %}" class="btn-cancel-outline">
+                                    ← Atrás
+                                </a>
+                                {% else %}
+                                <a href="{% url 'dashboard' %}" class="btn-cancel-outline">
+                                    ← Atrás
+                                </a>
+                                {% endif %}
+                            {% elif from_experiment %}
                                 {% if dicom_file.participant and dicom_file.experiment %}
                                 <a href="{% url 'participant_experiment_dicoms' dicom_file.participant.pk dicom_file.experiment.pk %}?from_experiment={{ from_experiment.pk }}" class="btn-cancel-outline">
                                     ← Atrás
@@ -319,6 +342,11 @@
                 <p style="color: #666; font-size: 0.95rem;" class="mb-4">Esta acción no se puede deshacer.</p>
                 <form method="POST" action="{% url 'dicomfile_delete' dicom_file.pk %}">
                     {% csrf_token %}
+                    {% if from_group %}
+                    <input type="hidden" name="from_group" value="{{ from_group.pk }}">
+                    {% elif from_experiment %}
+                    <input type="hidden" name="from_experiment" value="{{ from_experiment.pk }}">
+                    {% endif %}
                     <div class="d-flex justify-content-center gap-3">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" style="border-radius: 8px; padding: 0.5rem 1.5rem; font-weight: 500;">Cancelar</button>
                         <button type="submit" class="btn" style="background-color: #DC3545; color: #fff; font-weight: 600; border-radius: 8px; padding: 0.5rem 1.5rem;">Eliminar</button>

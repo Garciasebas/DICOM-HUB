@@ -15,7 +15,12 @@
         <div class="col-12 col-xl-10">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb breadcrumb-custom">
-                    {% if from_experiment %}
+                    {% if from_group %}
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="breadcrumb-link">Listado de Experimentos</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'experiment_detail' experiment.pk %}" class="breadcrumb-link">Detalle del Experimento</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'group_detail' experiment.pk from_group.pk %}" class="breadcrumb-link">Detalle del Grupo: {{ from_group.name }}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Participación en el Experimento</li>
+                    {% elif from_experiment %}
                     <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="breadcrumb-link">Listado de Experimentos</a></li>
                     <li class="breadcrumb-item"><a href="{% url 'experiment_detail' from_experiment.pk %}" class="breadcrumb-link">Detalle del Experimento</a></li>
                     <li class="breadcrumb-item active" aria-current="page">Participación en el Experimento</li>
@@ -35,38 +40,37 @@
             <div class="card border-0 shadow-sm" style="border-radius: 20px; padding: 2rem;">
                 <div class="card-body p-0">
                     <!-- Title and Metadata Header -->
-                    <div class="d-flex justify-content-between align-items-start mb-4 pb-3 border-bottom">
+                    <div class="form-header-custom mb-4 pb-3 border-bottom">
                         <div>
-                            <h2 class="mb-2" style="font-weight: 800; font-size: 2rem; color: #000;">
+                            <h2 class="form-title-left">
                                 Participación en el Experimento
                             </h2>
-                            <p class="mb-1" style="font-size: 1rem; color: #334155;">
+                            <p class="detail-meta-text mb-1">
                                 <strong>Experimento:</strong> {{ experiment.name }}
                             </p>
-                            <p class="mb-0" style="font-size: 1rem; color: #334155;">
-                                <strong>Grupo:</strong>
-                                {% if group %}
-                                <span class="badge" style="background-color: #2B7A9B; font-size: 0.9rem; font-weight: 600; padding: 5px 12px; border-radius: 12px;">{{ group.name }}</span>
-                                {% else %}
-                                <span class="badge bg-secondary text-white" style="font-size: 0.9rem; padding: 5px 12px; border-radius: 12px;">Sin grupo</span>
-                                {% endif %}
+                            <p class="detail-meta-text mb-0">
+                                <strong>Grupo:</strong> {% if group %}{{ group.name }}{% else %}Sin grupo{% endif %}
                             </p>
                         </div>
-                        {% if from_experiment %}
-                        <a href="{% url 'experiment_detail' from_experiment.pk %}" class="btn btn-outline-secondary"
-                            style="border-radius: 8px; padding: 0.5rem 1.5rem; font-size: 0.9rem; font-weight: 500;">
-                            ← Atrás
-                        </a>
-                        {% else %}
-                        <a href="{% url 'participant_experiments' participant.pk %}" class="btn btn-outline-secondary"
-                            style="border-radius: 8px; padding: 0.5rem 1.5rem; font-size: 0.9rem; font-weight: 500;">
-                            ← Atrás
-                        </a>
-                        {% endif %}
+                        <div class="form-actions-right">
+                            {% if from_group %}
+                            <a href="{% url 'group_detail' experiment.pk from_group.pk %}" class="btn-cancel-outline">
+                                ← Atrás
+                            </a>
+                            {% elif from_experiment %}
+                            <a href="{% url 'experiment_detail' from_experiment.pk %}" class="btn-cancel-outline">
+                                ← Atrás
+                            </a>
+                            {% else %}
+                            <a href="{% url 'participant_experiments' participant.pk %}" class="btn-cancel-outline">
+                                ← Atrás
+                            </a>
+                            {% endif %}
+                        </div>
                     </div>
 
                     <!-- Section 1: Información del participante -->
-                    <div class="mb-4 p-4" style="background-color: #F8FAFC; border-radius: 14px; border: 1px solid #E2E8F0;">
+                    <div class="mb-4">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h3 class="m-0" style="font-size: 1.2rem; font-weight: 700; color: #1E293B;">
                                 <i class="fas fa-id-card me-2" style="color: #2B7A9B;"></i>Información del Participante
@@ -165,7 +169,7 @@
                                             {% endif %}
                                         </td>
                                         <td class="py-3 px-3 text-end">
-                                            <a href="{% url 'dicomfile_detail' dicom_file.pk %}{% if from_experiment %}?from_experiment={{ from_experiment.pk }}{% endif %}"
+                                            <a href="{% url 'dicomfile_detail' dicom_file.pk %}{% if from_group %}?from_group={{ from_group.pk }}{% elif from_experiment %}?from_experiment={{ from_experiment.pk }}{% endif %}"
                                                 style="color: #2B7A9B; text-decoration: none; font-weight: 600;">
                                                 Detalles
                                             </a>

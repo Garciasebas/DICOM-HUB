@@ -1035,4 +1035,71 @@ body:has(.sidebar) .content-area {
     vertical-align: middle;
 }
 
+/* ===== BOTÓN UNIFICADO DE ELIMINACIÓN / QUITAR (X) ===== */
+.btn-remove-x {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    font-size: 0.875rem;
+    color: #DC3545;
+    background-color: transparent;
+    border: 1px solid #DC3545;
+    border-radius: 6px;
+    cursor: pointer;
+    line-height: 1;
+    text-decoration: none;
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
 
+.btn-remove-x:hover {
+    color: #FFFFFF;
+    background-color: #DC3545;
+    border-color: #DC3545;
+}
+
+.btn-remove-x:focus {
+    color: #FFFFFF;
+    background-color: #DC3545;
+    border-color: #DC3545;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+/* ===== BOTÓN UNIFICADO DE AGREGAR (+) ===== */
+.btn-add-plus,
+.btn-icon-add {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    font-size: 0.875rem;
+    color: #2B7A9B;
+    background-color: transparent;
+    border: 1px solid #2B7A9B;
+    border-radius: 6px;
+    cursor: pointer;
+    line-height: 1;
+    text-decoration: none;
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.btn-add-plus:hover,
+.btn-icon-add:hover {
+    color: #FFFFFF;
+    background-color: #2B7A9B;
+    border-color: #2B7A9B;
+}
+
+.btn-add-plus:focus,
+.btn-icon-add:focus {
+    color: #FFFFFF;
+    background-color: #2B7A9B;
+    border-color: #2B7A9B;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(43, 122, 155, 0.25);
+}

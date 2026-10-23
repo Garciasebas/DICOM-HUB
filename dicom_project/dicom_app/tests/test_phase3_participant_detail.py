@@ -85,12 +85,12 @@ class Phase3ParticipantDetailTestCase(TestCase):
         self.assertEqual(res2.context['group'], self.group1_exp2)
 
     def test_06_link_from_experiment_detail_leads_to_participant_data(self):
-        """6. El enlace desde "Detalle del Experimento" lleva al participante y experimento correctos."""
+        """6. Detalle del experimento ya no presenta enlaces a participantes porque esa sección fue removida."""
         url_detail = reverse('experiment_detail', args=[self.exp1.pk])
         res = self.client.get(url_detail)
         self.assertEqual(res.status_code, 200)
         target_url = reverse('participant_experiment_dicoms', args=[self.part1.pk, self.exp1.pk])
-        self.assertIn(target_url, res.content.decode('utf-8'))
+        self.assertNotIn(target_url, res.content.decode('utf-8'))
 
     def test_07_and_08_experiment_detail_table_headers_and_columns_simplified(self):
         """7 & 8. Las columnas Consentimiento/DICOM y el texto ACCIONES no aparecen en la tabla de participantes."""

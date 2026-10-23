@@ -115,9 +115,32 @@
         <div class="col-12 col-xl-10">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb breadcrumb-custom justify-content-center">
+                    {% if from_group %}
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="breadcrumb-link">Listado de Experimentos</a></li>
+                    {% if object.experiment %}
+                    <li class="breadcrumb-item"><a href="{% url 'experiment_detail' object.experiment.pk %}" class="breadcrumb-link">Detalle del Experimento</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'group_detail' object.experiment.pk from_group.pk %}" class="breadcrumb-link">Detalle del Grupo: {{ from_group.name }}</a></li>
+                    {% endif %}
+                    {% if object.participant and object.experiment %}
+                    <li class="breadcrumb-item"><a href="{% url 'participant_experiment_dicoms' object.participant.pk object.experiment.pk %}?from_group={{ from_group.pk }}" class="breadcrumb-link">Participación en el Experimento</a></li>
+                    {% endif %}
+                    <li class="breadcrumb-item"><a href="{% url 'dicomfile_detail' object.pk %}?from_group={{ from_group.pk }}" class="breadcrumb-link">Detalle de Archivo DICOM</a></li>
+                    {% elif from_experiment %}
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="breadcrumb-link">Listado de Experimentos</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'experiment_detail' from_experiment.pk %}" class="breadcrumb-link">Detalle del Experimento</a></li>
+                    {% if object.participant and object.experiment %}
+                    <li class="breadcrumb-item"><a href="{% url 'participant_experiment_dicoms' object.participant.pk object.experiment.pk %}?from_experiment={{ from_experiment.pk }}" class="breadcrumb-link">Participación en el Experimento</a></li>
+                    {% endif %}
+                    <li class="breadcrumb-item"><a href="{% url 'dicomfile_detail' object.pk %}?from_experiment={{ from_experiment.pk }}" class="breadcrumb-link">Detalle de Archivo DICOM</a></li>
+                    {% else %}
                     <li class="breadcrumb-item"><a href="{% url 'participant_list' %}" class="breadcrumb-link">Participantes</a></li>
                     {% if object.participant %}
                     <li class="breadcrumb-item"><a href="{% url 'participant_experiments' object.participant.pk %}" class="breadcrumb-link">Experimentos del Participante</a></li>
+                    {% if object.experiment %}
+                    <li class="breadcrumb-item"><a href="{% url 'participant_experiment_dicoms' object.participant.pk object.experiment.pk %}" class="breadcrumb-link">Participación en el Experimento</a></li>
+                    {% endif %}
+                    {% endif %}
+                    <li class="breadcrumb-item"><a href="{% url 'dicomfile_detail' object.pk %}" class="breadcrumb-link">Detalle de Archivo DICOM</a></li>
                     {% endif %}
                     <li class="breadcrumb-item active" aria-current="page">Eliminar Archivo DICOM</li>
                 </ol>
@@ -138,10 +161,15 @@
 
         <form method="post" class="delete-confirmation-actions">
             {% csrf_token %}
+            {% if from_group %}
+            <input type="hidden" name="from_group" value="{{ from_group.pk }}">
+            {% elif from_experiment %}
+            <input type="hidden" name="from_experiment" value="{{ from_experiment.pk }}">
+            {% endif %}
             <button type="submit" class="btn-delete">
                 <i class="fas fa-trash-can"></i> Eliminar
             </button>
-            <a href="{% url 'dicomfile_detail' object.pk %}" class="btn-cancel">
+            <a href="{% url 'dicomfile_detail' object.pk %}{% if from_group %}?from_group={{ from_group.pk }}{% elif from_experiment %}?from_experiment={{ from_experiment.pk }}{% endif %}" class="btn-cancel">
                 Cancelar
             </a>
         </form>

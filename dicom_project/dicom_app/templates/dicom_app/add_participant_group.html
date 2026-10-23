@@ -1,0 +1,352 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid p-0" style="background-color: #E6F0FF; min-height: 100vh;">
+    <!-- Header Title -->
+    <div class="row mb-4 pt-4">
+        <div class="col-12 text-center">
+            <h1 style="color: #5B7CFA; font-weight: 800; font-size: 2.5rem; letter-spacing: 2px;">DICOM HUB</h1>
+        </div>
+    </div>
+
+    <!-- Breadcrumb -->
+    <div class="row justify-content-center px-4 mb-3">
+        <div class="col-12 col-xl-10">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb breadcrumb-custom">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="breadcrumb-link">Listado de Experimentos</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'experiment_detail' experiment.pk %}" class="breadcrumb-link">Detalle del Experimento</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'group_detail' experiment.pk group.pk %}" class="breadcrumb-link">Detalle del Grupo: {{ group.name }}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Crear Participante</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Main Card -->
+    <div class="row justify-content-center px-4 mb-5">
+        <div class="col-12 col-xl-10">
+            <div class="card border-0 shadow-sm" style="border-radius: 20px; padding: 2rem; background: white;">
+                <div class="card-body p-0">
+
+                    <!-- Messages -->
+                    {% if messages %}
+                    <div class="mb-4">
+                        {% for message in messages %}
+                        <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags|default:'info' }}{% endif %} alert-dismissible fade show" role="alert" style="border-radius: 12px;">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    {% if error_msg %}
+                    <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert" style="border-radius: 12px;">
+                        <i class="fas fa-exclamation-triangle me-2"></i>{{ error_msg }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endif %}
+
+                    <!-- Title and Metadata Header with Single Top-Right Guardar Button -->
+                    <div class="form-header-custom mb-4 pb-3 border-bottom">
+                        <div>
+                            <h2 class="form-title-left">
+                                Crear Participante
+                            </h2>
+                            <p class="detail-meta-text mb-1">
+                                <strong>Experimento:</strong> {{ experiment.name }}
+                            </p>
+                            <p class="detail-meta-text mb-0">
+                                <strong>Grupo:</strong> {{ group.name }}
+                            </p>
+                        </div>
+                        <div class="form-actions-right">
+                            <a href="{% url 'group_detail' experiment.pk group.pk %}" class="btn-cancel-outline">
+                                ← Atrás
+                            </a>
+                            <button type="submit" form="form-create-participant" class="btn-save-teal">
+                                Guardar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Full Creation Form -->
+                    <form id="form-create-participant" method="post" action="" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <input type="hidden" name="mode" value="create">
+
+                        <!-- Section 1: Información del participante -->
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h3 class="m-0" style="font-size: 1.2rem; font-weight: 700; color: #1E293B;">
+                                    <i class="fas fa-id-card me-2" style="color: #2B7A9B;"></i>Información del Participante
+                                </h3>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-12 col-md-6">
+                                    <label for="id_first_name" class="form-label" style="font-weight: 600; color: #334155; font-size: 0.9rem;">Nombre <span class="text-danger">*</span></label>
+                                    <input type="text" id="id_first_name" name="first_name" class="form-control" style="border-radius: 8px; border: 1px solid #CBD5E1;" value="{{ form_data.first_name|default:'' }}" required>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_last_name" class="form-label" style="font-weight: 600; color: #334155; font-size: 0.9rem;">Apellido <span class="text-danger">*</span></label>
+                                    <input type="text" id="id_last_name" name="last_name" class="form-control" style="border-radius: 8px; border: 1px solid #CBD5E1;" value="{{ form_data.last_name|default:'' }}" required>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_birth_date" class="form-label" style="font-weight: 600; color: #334155; font-size: 0.9rem;">Fecha de nacimiento</label>
+                                    <input type="date" id="id_birth_date" name="birth_date" class="form-control" style="border-radius: 8px; border: 1px solid #CBD5E1;" value="{{ form_data.birth_date|default:'' }}">
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="id_sex" class="form-label" style="font-weight: 600; color: #334155; font-size: 0.9rem;">Sexo</label>
+                                    <select id="id_sex" name="sex" class="form-select" style="border-radius: 8px; border: 1px solid #CBD5E1;">
+                                        <option value="">-- No especificado --</option>
+                                        <option value="M" {% if form_data.sex == 'M' %}selected{% endif %}>Masculino</option>
+                                        <option value="F" {% if form_data.sex == 'F' %}selected{% endif %}>Femenino</option>
+                                        <option value="O" {% if form_data.sex == 'O' %}selected{% endif %}>Otro</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Section 2: Nota de consentimiento -->
+                        <div class="mb-4 p-4" style="background-color: #F8FAFC; border-radius: 14px; border: 1px solid #E2E8F0;">
+                            <h3 class="mb-3" style="font-size: 1.2rem; font-weight: 700; color: #1E293B;">
+                                <i class="fas fa-file-contract me-2" style="color: #2B7A9B;"></i>Nota de Consentimiento
+                            </h3>
+                            <div class="mb-2">
+                                <label for="id_consent_file" class="form-label" style="font-weight: 600; color: #334155; font-size: 0.9rem;">Adjuntar nota de consentimiento (PDF)</label>
+                                <div class="d-flex align-items-center gap-2">
+                                    <input type="file" id="id_consent_file" name="consent_file" class="form-control" style="border-radius: 8px; border: 1px solid #CBD5E1;" accept=".pdf">
+                                    <button type="button" id="btn-clear-consent" class="btn btn-sm btn-outline-danger btn-remove-x" onclick="clearConsentFile()" title="Quitar archivo" aria-label="Quitar archivo" style="display: none; flex-shrink: 0;">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <small class="text-muted" style="font-size: 0.825rem;">Opcional. Se permiten únicamente archivos en formato PDF con encabezado válido.</small>
+                            </div>
+                        </div>
+
+                        <!-- Section 3: Archivos DICOM -->
+                        <div class="p-4" style="background-color: #F8FAFC; border-radius: 14px; border: 1px solid #E2E8F0;">
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <h3 class="m-0" style="font-size: 1.2rem; font-weight: 700; color: #1E293B;">
+                                    <i class="fas fa-x-ray me-2" style="color: #2B7A9B;"></i>Archivos DICOM
+                                </h3>
+                                <button type="button" class="btn btn-sm" id="btn-upload-dicom" onclick="triggerDicomFileSelection()" style="background-color: #2B7A9B; color: white; border-radius: 6px; font-weight: 600; padding: 6px 14px;">
+                                    + Subir DICOM
+                                </button>
+                            </div>
+
+                            <!-- Inputs para selección y envío de archivos -->
+                            <input type="file" id="hidden-dicom-picker" accept=".dcm" multiple style="display: none;" onchange="handleDicomFileSelection(event)">
+                            <input type="file" id="main-dicom-files-input" name="dicom_files" accept=".dcm" multiple style="display: none;">
+
+                            <!-- Alerta de validación en español -->
+                            <div id="dicom-validation-alert" class="alert alert-danger py-2 px-3 mb-3" style="display: none; border-radius: 8px; font-size: 0.875rem;" role="alert">
+                                <i class="fas fa-exclamation-circle me-1"></i><span id="dicom-validation-alert-text"></span>
+                            </div>
+
+                            <!-- Tabla con la misma estética de participant_experiment_dicoms.html -->
+                            <div class="table-responsive bg-white" style="border-radius: 10px; border: 1px solid #E2E8F0;">
+                                <table class="table table-hover align-middle mb-0" id="table-selected-dicoms">
+                                    <thead>
+                                        <tr style="background-color: #F1F5F9; font-size: 0.85rem; text-transform: uppercase; color: #475569;">
+                                            <th scope="col" class="py-3 px-3" style="font-weight: 700;">Nombre del archivo</th>
+                                            <th scope="col" class="py-3 px-3" style="font-weight: 700;">Tamaño</th>
+                                            <th scope="col" class="py-3 px-3" style="font-weight: 700;">Estado</th>
+                                            <th scope="col" class="py-3 px-3 text-end" style="font-weight: 700;">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dicom-files-table-body">
+                                        <tr id="no-dicom-files-row">
+                                            <td colspan="4" class="text-center py-4 text-muted" style="font-size: 0.9rem;">
+                                                No hay archivos seleccionados.
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <small class="text-muted d-block mt-2" style="font-size: 0.825rem;">Opcional. Permite seleccionar uno o varios archivos DICOM (.dcm) para su procesamiento y almacenamiento.</small>
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let accumulatedDicomFiles = [];
+
+    function triggerDicomFileSelection() {
+        const picker = document.getElementById('hidden-dicom-picker');
+        if (picker) {
+            picker.click();
+        }
+    }
+
+    function formatFileSize(bytes) {
+        if (!bytes || bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function showDicomValidationAlert(msg) {
+        const alertEl = document.getElementById('dicom-validation-alert');
+        const textEl = document.getElementById('dicom-validation-alert-text');
+        if (textEl) textEl.textContent = msg;
+        if (alertEl) alertEl.style.display = 'block';
+    }
+
+    function hideDicomValidationAlert() {
+        const alertEl = document.getElementById('dicom-validation-alert');
+        if (alertEl) alertEl.style.display = 'none';
+    }
+
+    function handleDicomFileSelection(event) {
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
+
+        let hasInvalid = false;
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const lowerName = file.name.toLowerCase();
+
+            // Comprobar extensión .dcm sin distinguir mayúsculas/minúsculas
+            if (!lowerName.endsWith('.dcm')) {
+                hasInvalid = true;
+                continue;
+            }
+
+            // Evitar duplicados exactos
+            const isDuplicate = accumulatedDicomFiles.some(
+                existing => existing.name === file.name && existing.size === file.size
+            );
+            if (!isDuplicate) {
+                accumulatedDicomFiles.push(file);
+            }
+        }
+
+        // Reiniciar picker para permitir volver a seleccionar el mismo archivo
+        event.target.value = '';
+
+        renderDicomTable();
+        syncFormDicomInputs();
+
+        if (hasInvalid) {
+            const errorMsg = 'Archivo no válido. Solo se permiten archivos DICOM con extensión .dcm.';
+            showDicomValidationAlert(errorMsg);
+            alert(errorMsg);
+        } else {
+            hideDicomValidationAlert();
+        }
+    }
+
+    function removeDicomFile(index) {
+        if (index >= 0 && index < accumulatedDicomFiles.length) {
+            accumulatedDicomFiles.splice(index, 1);
+            renderDicomTable();
+            syncFormDicomInputs();
+        }
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function renderDicomTable() {
+        const tbody = document.getElementById('dicom-files-table-body');
+        if (!tbody) return;
+
+        if (accumulatedDicomFiles.length === 0) {
+            tbody.innerHTML = `
+                <tr id="no-dicom-files-row">
+                    <td colspan="4" class="text-center py-4 text-muted" style="font-size: 0.9rem;">
+                        No hay archivos seleccionados.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        let html = '';
+        accumulatedDicomFiles.forEach((file, index) => {
+            html += `
+                <tr style="border-bottom: 1px solid #f0f0f0; font-size: 0.9rem;">
+                    <td class="py-3 px-3" style="color: #334155; font-weight: 500;">
+                        <i class="fas fa-file-medical me-2" style="color: #2B7A9B;"></i>${escapeHtml(file.name)}
+                    </td>
+                    <td class="py-3 px-3" style="color: #64748B;">
+                        ${formatFileSize(file.size)}
+                    </td>
+                    <td class="py-3 px-3">
+                        <span class="badge" style="background-color: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; font-weight: 600; font-size: 0.75rem;">
+                            Pendiente de guardar
+                        </span>
+                    </td>
+                    <td class="py-3 px-3 text-end">
+                        <button type="button" class="btn btn-sm btn-outline-danger btn-remove-x" onclick="removeDicomFile(${index})" title="Quitar archivo" aria-label="Quitar archivo">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    }
+
+    function syncFormDicomInputs() {
+        const input = document.getElementById('main-dicom-files-input');
+        if (!input) return;
+
+        try {
+            const dt = new DataTransfer();
+            accumulatedDicomFiles.forEach(file => dt.items.add(file));
+            input.files = dt.files;
+        } catch (e) {
+            console.warn('DataTransfer no soportado:', e);
+        }
+    }
+
+    function updateConsentClearBtn() {
+        const consentInput = document.getElementById('id_consent_file');
+        const clearBtn = document.getElementById('btn-clear-consent');
+        if (consentInput && clearBtn) {
+            if (consentInput.files && consentInput.files.length > 0) {
+                clearBtn.style.display = 'inline-flex';
+            } else {
+                clearBtn.style.display = 'none';
+            }
+        }
+    }
+
+    function clearConsentFile() {
+        const consentInput = document.getElementById('id_consent_file');
+        if (consentInput) {
+            consentInput.value = '';
+            updateConsentClearBtn();
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const consentInput = document.getElementById('id_consent_file');
+        if (consentInput) {
+            consentInput.addEventListener('change', updateConsentClearBtn);
+        }
+        updateConsentClearBtn();
+
+        const form = document.getElementById('form-create-participant');
+        if (form) {
+            form.addEventListener('submit', function () {
+                syncFormDicomInputs();
+            });
+        }
+    });
+</script>
+{% endblock %}

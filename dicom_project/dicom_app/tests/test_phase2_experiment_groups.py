@@ -37,13 +37,30 @@ class Phase2ExperimentGroupsTestCase(TestCase):
         self.assertEqual(exp.members.count(), 0)
 
     def test_03_create_group_associated_to_experiment(self):
-        """3. Crear grupo asociado a un experimento vía AJAX."""
+        """3. Crear grupo asociado a un experimento vía AJAX sin descripción."""
         url = reverse('create_group_ajax', args=[self.exp_a.pk])
         res = self.client.post(url, data=json.dumps({'name': 'Placebo'}), content_type='application/json')
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertEqual(data['status'], 'success')
-        self.assertTrue(ParticipantGroup.objects.filter(experiment=self.exp_a, name='Placebo').exists())
+        group = ParticipantGroup.objects.filter(experiment=self.exp_a, name='Placebo').first()
+        self.assertIsNotNone(group)
+        self.assertEqual(group.description, '')
+
+    def test_03b_create_group_with_description(self):
+        """3b. Crear grupo asociado a un experimento vía AJAX con descripción."""
+        url = reverse('create_group_ajax', args=[self.exp_a.pk])
+        payload = {
+            'name': 'Grupo Tratamiento A',
+            'description': 'Grupo de pacientes sometidos a tratamiento A con resonancia semanal.'
+        }
+        res = self.client.post(url, data=json.dumps(payload), content_type='application/json')
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data['status'], 'success')
+        self.assertEqual(data['description'], payload['description'])
+        group = ParticipantGroup.objects.get(experiment=self.exp_a, name='Grupo Tratamiento A')
+        self.assertEqual(group.description, payload['description'])
 
     def test_04_disallow_duplicate_group_name_in_same_experiment(self):
         """4. No permitir grupos duplicados dentro del mismo experimento."""
@@ -129,13 +146,13 @@ class Phase2ExperimentGroupsTestCase(TestCase):
         self.assertEqual(ep.group, self.group_a_exp)
 
     def test_11_render_sin_grupo_for_legacy_relations(self):
-        """11. Mostrar correctamente "Sin grupo" para relaciones antiguas sin grupo (group_id=None)."""
+        """11. Detalle del experimento ya no muestra "Sin grupo" porque se eliminó la sección de participantes."""
         ExperimentParticipant.objects.create(experiment=self.exp_a, participant=self.part_1, group=None)
         
         url = reverse('experiment_detail', args=[self.exp_a.pk])
         res = self.client.get(url)
         self.assertEqual(res.status_code, 200)
-        self.assertIn('Sin grupo', res.content.decode('utf-8'))
+        self.assertNotIn('Sin grupo', res.content.decode('utf-8'))
 
     def test_12_remove_participant_from_experiment(self):
         """12. Eliminar/desvincular participante manteniendo la integridad existente."""
