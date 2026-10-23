@@ -50,26 +50,23 @@ class Phase21GroupManagementTestCase(TestCase):
         self.assertEqual(data['status'], 'success')
         self.assertEqual(data['participants'], [])
 
-    def test_03_delete_group_retains_participant_and_sets_group_null(self):
-        """TEST 3 — Eliminar grupo (Participant and ExperimentParticipant continue existing, group=None)."""
+    def test_03_disallow_delete_group_with_participants(self):
+        """TEST 3 — Rechazar eliminación de un grupo que contiene participantes."""
         url = reverse('delete_group_ajax', args=[self.exp1.pk, self.group1_exp1.pk])
         res = self.client.post(url)
-        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.status_code, 400)
         data = res.json()
-        self.assertEqual(data['status'], 'success')
+        self.assertEqual(data['status'], 'error')
+        self.assertIn("No se puede eliminar el grupo porque contiene participantes", data['message'])
 
-        # Check ParticipantGroup deleted
-        self.assertFalse(ParticipantGroup.objects.filter(pk=self.group1_exp1.pk).exists())
+        # Check ParticipantGroup still exists
+        self.assertTrue(ParticipantGroup.objects.filter(pk=self.group1_exp1.pk).exists())
 
-        # Check Participant still exists
-        self.assertTrue(Participant.objects.filter(pk=self.part1.pk).exists())
-        self.assertTrue(Participant.objects.filter(pk=self.part2.pk).exists())
-
-        # Check ExperimentParticipant still exists with group=None
+        # Check Participants still exist and their group relation is untouched
         self.ep1.refresh_from_db()
         self.ep2.refresh_from_db()
-        self.assertIsNone(self.ep1.group)
-        self.assertIsNone(self.ep2.group)
+        self.assertEqual(self.ep1.group, self.group1_exp1)
+        self.assertEqual(self.ep2.group, self.group1_exp1)
 
     def test_04_delete_empty_group(self):
         """TEST 4 — Eliminar grupo vacío."""
@@ -95,34 +92,32 @@ class Phase21GroupManagementTestCase(TestCase):
         res_cross = self.client.post(url_cross)
         self.assertEqual(res_cross.status_code, 404)
 
-    def test_06_delete_group_does_not_affect_other_groups(self):
-        """TEST 6 — No afectar otros grupos."""
+    def test_06_delete_empty_group_does_not_affect_other_groups(self):
+        """TEST 6 — Eliminar un grupo vacío no afecta a otros grupos."""
+        empty_group = ParticipantGroup.objects.create(experiment=self.exp1, name="Grupo Vacio Secundario")
         self.ep3 = ExperimentParticipant.objects.create(experiment=self.exp1, participant=self.part3, group=self.group2_exp1)
 
-        url = reverse('delete_group_ajax', args=[self.exp1.pk, self.group1_exp1.pk])
+        url = reverse('delete_group_ajax', args=[self.exp1.pk, empty_group.pk])
         res = self.client.post(url)
         self.assertEqual(res.status_code, 200)
 
-        # Group 1 deleted
-        self.assertFalse(ParticipantGroup.objects.filter(pk=self.group1_exp1.pk).exists())
+        # Empty group deleted
+        self.assertFalse(ParticipantGroup.objects.filter(pk=empty_group.pk).exists())
 
-        # Group 2 still exists
+        # Other group still exists
         self.assertTrue(ParticipantGroup.objects.filter(pk=self.group2_exp1.pk).exists())
 
         # Participant in Group 2 still associated correctly
         self.ep3.refresh_from_db()
         self.assertEqual(self.ep3.group, self.group2_exp1)
 
-    def test_07_participant_remains_in_experiment_after_group_deleted(self):
-        """TEST 7 — Participante continúa en el experimento."""
-        url = reverse('delete_group_ajax', args=[self.exp1.pk, self.group1_exp1.pk])
-        res = self.client.post(url)
+    def test_07_experiment_detail_does_not_render_participant_section(self):
+        """TEST 7 — Detalle del experimento ya no presenta la sección de participantes."""
+        url = reverse('experiment_detail', args=[self.exp1.pk])
+        res = self.client.get(url)
         self.assertEqual(res.status_code, 200)
-
-        # participant.experiments.all() includes experiment
-        self.assertIn(self.exp1, self.part1.experiments.all())
-        self.assertIn(self.exp1, self.part2.experiments.all())
-
-        # experiment.participants.all() includes participant
-        self.assertIn(self.part1, self.exp1.participants.all())
-        self.assertIn(self.part2, self.exp1.participants.all())
+        content = res.content.decode('utf-8')
+        self.assertNotIn('<h3 class="section-title-centered-large m-0">Participantes</h3>', content)
+        self.assertNotIn('openParticipantsModal', content)
+        self.assertIn('<h3 class="section-title-centered-large m-0">Grupos</h3>', content)
+        self.assertIn('<h3 class="section-title-centered-large m-0">Miembros del Equipo</h3>', content)

@@ -22,7 +22,7 @@
     </div>
 
     <!-- Main Card -->
-    <div class="row justify-content-center px-4">
+    <div class="row justify-content-center px-4 mb-5">
         <div class="col-12 col-xl-10">
             <div class="card border-0 shadow-sm" style="border-radius: 20px; padding: 2rem;">
                 <div class="card-body p-0">
@@ -77,74 +77,39 @@
                     <!-- Section: Grupos -->
                     <div class="d-flex align-items-center justify-content-between mb-3 mt-4">
                         <h3 class="section-title-centered-large m-0">Grupos</h3>
-                        <button type="button" onclick="openCreateGroupModal()" class="btn-icon-add" title="Crear nuevo grupo">+</button>
+                        <button type="button" onclick="openCreateGroupModal()" class="btn-add-plus" title="Crear nuevo grupo" aria-label="Crear nuevo grupo"><i class="fas fa-plus"></i></button>
                     </div>
-                    <div class="d-flex flex-wrap gap-2 mb-4 p-3" style="background: #F8FAFC; border-radius: 12px; border: 1px dashed #CBD5E1;">
-                        {% for group in groups %}
-                        <div class="dropdown d-inline-block">
-                            <span class="badge dropdown-toggle" id="groupDropdown{{ group.id }}" data-bs-toggle="dropdown" aria-expanded="false" style="background-color: #2B7A9B; font-size: 0.95rem; padding: 8px 14px; border-radius: 20px; font-weight: 500; cursor: pointer;">
-                                <i class="fas fa-users me-1"></i>{{ group.name }}
-                            </span>
-                            <ul class="dropdown-menu shadow border-0" aria-labelledby="groupDropdown{{ group.id }}" style="border-radius: 12px; font-size: 0.9rem;">
-                                <li>
-                                    <a class="dropdown-item" href="javascript:void(0)" onclick="viewGroupParticipants('{{ group.id }}', '{{ group.name|escapejs }}')">
-                                        <i class="fas fa-eye me-2 text-primary"></i>Ver participantes
-                                    </a>
-                                </li>
-                                <li><hr class="dropdown-divider m-1"></li>
-                                <li>
-                                    <a class="dropdown-item text-danger" href="javascript:void(0)" onclick="confirmDeleteGroup('{{ group.id }}', '{{ group.name|escapejs }}')">
-                                        <i class="fas fa-trash-can me-2"></i>Eliminar grupo
-                                    </a>
-                                </li>
-                            </ul>
-                        </div>
-                        {% empty %}
-                        <span class="text-muted" style="font-size: 0.9rem;">No hay grupos registrados en este experimento. Haga clic en <strong>+</strong> para crear uno.</span>
-                        {% endfor %}
-                    </div>
-
-                    <!-- Section: Participantes -->
-                    <div class="d-flex align-items-center justify-content-between mb-3 mt-4">
-                        <h3 class="section-title-centered-large m-0">Participantes</h3>
-                        <button type="button" id="open-participants-modal-btn" onclick="openParticipantsModal()" class="btn-icon-add" title="Agregar o crear participante">+</button>
-                    </div>
-                    <div class="participants-table" style="background: white; border-radius: 12px; border: 1px solid #E2E8F0; overflow: hidden;">
-                        <div class="participant-table-header" style="display: grid; grid-template-columns: 2fr 1.5fr 40px; align-items: center; gap: 1rem; padding: 0.75rem 1rem; background: #F1F5F9; font-weight: 700; font-size: 0.85rem; color: #475569; text-transform: uppercase;">
-                            <div>Participante</div>
-                            <div>Grupo</div>
+                    <div id="groups-list-container" class="groups-table mb-4" style="background: white; border-radius: 12px; border: 1px solid #E2E8F0; overflow: hidden;">
+                        <div class="group-table-header" style="display: grid; grid-template-columns: 2fr 1.5fr 40px; align-items: center; gap: 1rem; padding: 0.75rem 1rem; background: #F1F5F9; font-weight: 700; font-size: 0.85rem; color: #475569; text-transform: uppercase;">
+                            <div>Nombre del Grupo</div>
+                            <div>Fecha de Creación</div>
                             <div class="text-end"></div>
                         </div>
-                        {% for ep in experiment_participants %}
-                        <div class="participant-row-detail" style="display: grid; grid-template-columns: 2fr 1.5fr 40px; align-items: center; gap: 1rem; padding: 0.75rem 1rem; border-bottom: 1px solid #E2E8F0;">
-                            <div class="participant-name-bold" title="{{ ep.participant.first_name }} {{ ep.participant.last_name }}">
-                                <a href="{% url 'participant_experiment_dicoms' ep.participant.pk experiment.pk %}?from_experiment={{ experiment.pk }}" class="participant-name-link">
-                                    {{ ep.participant.first_name }} {{ ep.participant.last_name }}
-                                </a>
+                        <div id="groups-list-body">
+                            {% for group in groups %}
+                            <div class="group-row-detail" id="group-row-{{ group.id }}" style="display: grid; grid-template-columns: 2fr 1.5fr 40px; align-items: center; gap: 1rem; padding: 0.75rem 1rem; border-bottom: 1px solid #E2E8F0;">
+                                <div class="group-name-bold">
+                                    <a href="{% url 'group_detail' experiment.pk group.pk %}" class="group-name-link" style="color: #1E6091; text-decoration: none; font-weight: 600;">
+                                        <i class="fas fa-users me-2" style="color: #2B7A9B;"></i>{{ group.name }}
+                                    </a>
+                                </div>
+                                <div class="group-date-col text-muted" style="font-size: 0.9rem;">
+                                    {{ group.created_at|date:"Y-m-d H:i" }}
+                                </div>
+                                <div class="group-action-col action-col-x text-end">
+                                    <button type="button" class="btn btn-sm btn-outline-danger btn-remove-x" onclick="confirmDeleteGroup('{{ group.id }}', '{{ group.name|escapejs }}')" title="Eliminar grupo" aria-label="Eliminar grupo"><i class="fas fa-times"></i></button>
+                                </div>
                             </div>
-                            <div class="participant-group-col">
-                                {% if ep.group %}
-                                <span class="badge" style="background-color: #2B7A9B; font-size: 0.85rem; font-weight: 600;">{{ ep.group.name }}</span>
-                                {% else %}
-                                <span class="badge bg-secondary text-white" style="font-size: 0.85rem;">Sin grupo</span>
-                                {% endif %}
-                                <button type="button" class="btn-edit-small ms-1" onclick="openAssignGroupModal('{{ ep.participant.pk }}', '{{ ep.group.pk|default:'' }}')" title="Cambiar grupo">
-                                    <i class="fas fa-pen"></i> Cambiar
-                                </button>
-                            </div>
-                            <div class="participant-action-col action-col-x text-end">
-                                <button type="button" class="btn-remove-x" onclick="confirmRemoveParticipant('{{ ep.participant.pk }}')" title="Eliminar participante del experimento">X</button>
-                            </div>
+                            {% empty %}
+                            <p id="no-groups-msg" style="text-align: center; color: #95a5a6; padding: 2rem 0; margin: 0;">No hay grupos registrados en este experimento. Haga clic en <strong>+</strong> para crear uno.</p>
+                            {% endfor %}
                         </div>
-                        {% empty %}
-                        <p style="text-align: center; color: #95a5a6; padding: 2rem 0; margin: 0;">No hay participantes registrados en este experimento.</p>
-                        {% endfor %}
                     </div>
 
                     <!-- Section: Miembros del Equipo -->
                     <div class="d-flex align-items-center justify-content-between mb-3 mt-4">
                         <h3 class="section-title-centered-large m-0">Miembros del Equipo</h3>
-                        <button type="button" id="open-members-modal-btn" onclick="openMembersModal()" class="btn-icon-add" title="Agregar o crear miembro">+</button>
+                        <button type="button" id="open-members-modal-btn" onclick="openMembersModal()" class="btn-add-plus" title="Agregar o crear miembro" aria-label="Agregar o crear miembro"><i class="fas fa-plus"></i></button>
                     </div>
                     <div class="team-simple-list">
                         {% for member in experiment.members.all %}
@@ -164,7 +129,7 @@
                                 </span>
                             </div>
                             <div class="team-action-col action-col-x">
-                                <button type="button" class="btn-remove-x" onclick="confirmRemoveMember('{{ member.pk }}')" title="Quitar miembro del equipo">X</button>
+                                <button type="button" class="btn btn-sm btn-outline-danger btn-remove-x" onclick="confirmRemoveMember('{{ member.pk }}')" title="Quitar miembro del equipo" aria-label="Quitar miembro del equipo"><i class="fas fa-times"></i></button>
                             </div>
                         </div>
                         {% empty %}
@@ -222,47 +187,71 @@
         min-height: 100px;
     }
 
+    .btn-add-plus,
     .btn-icon-add {
-        background: #2B7A9B;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        font-size: 20px;
-        line-height: 0;
-        padding: 0;
-        transition: background 0.2s;
-    }
-
-    .btn-icon-add:hover {
-        background: #236a8a;
-    }
-
-    .btn-remove-x {
-        background: none;
-        border: none;
-        color: #DC3545;
-        font-weight: 700;
-        font-size: 1rem;
-        cursor: pointer;
-        padding: 0;
-        width: 32px;
-        height: 32px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        font-size: 0.875rem;
+        color: #2B7A9B;
+        background-color: transparent;
+        border: 1px solid #2B7A9B;
+        border-radius: 6px;
+        cursor: pointer;
         line-height: 1;
-        transition: color 0.2s, transform 0.15s;
+        text-decoration: none;
+        transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+
+    .btn-add-plus:hover,
+    .btn-icon-add:hover {
+        color: #FFFFFF;
+        background-color: #2B7A9B;
+        border-color: #2B7A9B;
+    }
+
+    .btn-add-plus:focus,
+    .btn-icon-add:focus {
+        color: #FFFFFF;
+        background-color: #2B7A9B;
+        border-color: #2B7A9B;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(43, 122, 155, 0.25);
+    }
+
+    .btn-remove-x {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        font-size: 0.875rem;
+        color: #DC3545;
+        background-color: transparent;
+        border: 1px solid #DC3545;
+        border-radius: 6px;
+        cursor: pointer;
+        line-height: 1;
+        text-decoration: none;
+        transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
     }
 
     .btn-remove-x:hover {
-        color: #a71d2a;
-        transform: scale(1.2);
+        color: #FFFFFF;
+        background-color: #DC3545;
+        border-color: #DC3545;
+    }
+
+    .btn-remove-x:focus {
+        color: #FFFFFF;
+        background-color: #DC3545;
+        border-color: #DC3545;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
     }
 
     .modal-overlay-custom {
@@ -326,6 +315,10 @@
             <label class="form-label" style="font-weight: 600;">Nombre del Grupo</label>
             <input type="text" id="new-group-name" class="form-control" placeholder="Ej: control, experimental">
         </div>
+        <div class="mb-3">
+            <label class="form-label" style="font-weight: 600;">Descripción <span class="text-muted" style="font-weight: 400; font-size: 0.85rem;">(Opcional)</span></label>
+            <textarea id="new-group-description" class="form-control" rows="3" placeholder="Descripción del grupo..."></textarea>
+        </div>
         <div id="create-group-error" class="modal-error-alert" style="display: none; color: #991B1B; background: #FEE2E2; border: 1px solid #FCA5A5; padding: 0.5rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 1rem;">
             <i class="fas fa-exclamation-triangle me-1"></i>
             <span class="error-msg-text"></span>
@@ -337,26 +330,6 @@
     </div>
 </div>
 
-<!-- Modal Ver Participantes del Grupo -->
-<div id="modal-view-group" class="modal-overlay-custom">
-    <div class="modal-card-custom" style="max-width: 440px;">
-        <h3 class="modal-title mb-3" style="font-size: 1.2rem; font-weight: 700; color: #000;">
-            Grupo: <span id="view-group-title"></span>
-        </h3>
-        <div id="view-group-loading" class="text-center py-3 text-muted">
-            <i class="fas fa-spinner fa-spin me-2"></i>Cargando participantes...
-        </div>
-        <div id="view-group-empty" class="alert alert-info border-0 mb-3" style="display: none; background-color: #E0F2FE; color: #0369A1; font-size: 0.9rem; border-radius: 8px;">
-            <i class="fas fa-info-circle me-2"></i>Este grupo no tiene participantes asignados.
-        </div>
-        <ul id="view-group-list" class="list-group list-group-flush mb-3" style="display: none; max-height: 250px; overflow-y: auto;">
-        </ul>
-        <div class="d-flex justify-content-end">
-            <button type="button" onclick="closeViewGroupModal()" class="btn btn-secondary" style="border-radius: 8px; padding: 0.4rem 1.2rem; font-size: 0.9rem;">Cerrar</button>
-        </div>
-    </div>
-</div>
-
 <!-- Modal Confirmar Eliminar Grupo -->
 <div id="modal-delete-group" class="modal-overlay-custom">
     <div class="modal-card-custom" style="max-width: 450px; text-align: center; padding: 2rem;">
@@ -364,7 +337,7 @@
             ¿Eliminar grupo "<span id="delete-group-title"></span>"?
         </h3>
         <p style="color: #666; font-size: 0.95rem;" class="mb-4">
-            Los participantes pertenecientes a este grupo no serán eliminados. Quedarán sin grupo y podrán ser reasignados posteriormente.
+            Solo se pueden eliminar grupos que no contengan participantes. Esta acción no se puede deshacer.
         </p>
         <input type="hidden" id="delete-group-id-input">
         <div id="delete-group-error" class="modal-error-alert text-start mb-3" style="display: none; color: #991B1B; background: #FEE2E2; border: 1px solid #FCA5A5; padding: 0.5rem; border-radius: 6px; font-size: 0.85rem;">
@@ -374,31 +347,6 @@
         <div class="d-flex justify-content-center gap-3">
             <button type="button" onclick="closeDeleteGroupModal()" class="btn btn-outline-secondary" style="border-radius: 8px; padding: 0.5rem 1.5rem; font-weight: 500;">Cancelar</button>
             <button type="button" id="btn-confirm-delete-group" class="btn" style="background-color: #DC3545; color: #fff; font-weight: 600; border-radius: 8px; padding: 0.5rem 1.5rem;">Eliminar</button>
-        </div>
-    </div>
-</div>
-
-<!-- Modal Cambiar Grupo -->
-<div id="modal-assign-group" class="modal-overlay-custom">
-    <div class="modal-card-custom" style="max-width: 420px;">
-        <h3 class="modal-title mb-3" style="font-size: 1.2rem; font-weight: 700; color: #000;">Cambiar Grupo del Participante</h3>
-        <input type="hidden" id="assign-group-participant-id">
-        <div class="mb-3">
-            <label class="form-label" style="font-weight: 600;">Seleccionar Nuevo Grupo</label>
-            <select id="assign-group-select" class="form-select">
-                <option value="">-- Seleccionar grupo --</option>
-                {% for g in groups %}
-                <option value="{{ g.id }}">{{ g.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div id="assign-group-error" class="modal-error-alert" style="display: none; color: #991B1B; background: #FEE2E2; border: 1px solid #FCA5A5; padding: 0.5rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 1rem;">
-            <i class="fas fa-exclamation-triangle me-1"></i>
-            <span class="error-msg-text"></span>
-        </div>
-        <div class="d-flex justify-content-end gap-2">
-            <button type="button" onclick="closeAssignGroupModal()" class="btn btn-outline-secondary" style="border-radius: 8px; padding: 0.4rem 1.2rem; font-size: 0.9rem;">Cancelar</button>
-            <button type="button" id="confirm-assign-group-btn" class="btn" style="background-color: #1E6091; color: #fff; font-weight: 600; border-radius: 8px; padding: 0.4rem 1.4rem; font-size: 0.9rem;">Guardar Grupo</button>
         </div>
     </div>
 </div>
@@ -422,145 +370,6 @@
     </div>
 </div>
 
-<!-- Modal Agregar Participante Existente -->
-<div id="modal-manage-participants" class="modal-overlay-custom">
-    <div class="modal-card-custom">
-        <h3 class="modal-title mb-3" style="font-size: 1.2rem; font-weight: 700; color: #000;">Agregar Participante</h3>
-        
-        <div class="mb-3">
-            <label class="form-label" style="font-weight: 600;">Participante Existente</label>
-            <select id="select-participant-id" class="form-select">
-                <option value="">-- Seleccionar participante --</option>
-                {% for p in available_participants %}
-                <option value="{{ p.id }}">{{ p.first_name }} {{ p.last_name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label" style="font-weight: 600;">Grupo (Obligatorio)</label>
-            <select id="select-participant-group-id" class="form-select">
-                <option value="">-- Seleccionar grupo --</option>
-                {% for g in groups %}
-                <option value="{{ g.id }}">{{ g.name }}</option>
-                {% endfor %}
-            </select>
-            {% if not groups %}
-            <small class="text-danger d-block mt-1">Primero debe crear al menos un grupo en este experimento.</small>
-            {% endif %}
-        </div>
-
-        <div id="add-participant-error" class="modal-error-alert" style="display: none; color: #991B1B; background: #FEE2E2; border: 1px solid #FCA5A5; padding: 0.5rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 1rem;">
-            <i class="fas fa-exclamation-triangle me-1"></i>
-            <span class="error-msg-text"></span>
-        </div>
-
-        <div class="mb-3">
-            <span id="trigger-create-participant" onclick="openQuickParticipantModal()" class="link-quick-create">+ Crear nuevo participante</span>
-        </div>
-
-        <div class="d-flex justify-content-end gap-2 mt-4">
-            <button type="button" id="cancel-manage-participants" onclick="closeParticipantsModal()" class="btn btn-outline-secondary" style="border-radius: 8px; padding: 0.4rem 1.2rem; font-size: 0.9rem;">Cancelar</button>
-            <button type="button" id="confirm-add-participants" class="btn" style="background-color: #1E6091; color: #fff; font-weight: 600; border-radius: 8px; padding: 0.4rem 1.4rem; font-size: 0.9rem;">Agregar</button>
-        </div>
-    </div>
-</div>
-
-<!-- Modal Administrar Miembros -->
-<div id="modal-manage-members" class="modal-overlay-custom">
-    <div class="modal-card-custom">
-        <h3 class="modal-title mb-3" style="font-size: 1.2rem; font-weight: 700; color: #000;">Agregar Miembros del Equipo</h3>
-        
-        <div class="mb-3">
-            <select id="select-member-id" class="form-select">
-                <option value="">-- Seleccionar miembro existente --</option>
-                {% for m in available_members %}
-                <option value="{{ m.id }}">{{ m.first_name }} {{ m.last_name }}{% if m.role %} - {{ m.role }}{% endif %}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div>
-            <span id="trigger-create-member" onclick="openQuickMemberModal()" class="link-quick-create">+ Crear nuevo miembro</span>
-        </div>
-
-        <div class="d-flex justify-content-end gap-2 mt-4">
-            <button type="button" id="cancel-manage-members" onclick="closeMembersModal()" class="btn btn-outline-secondary" style="border-radius: 8px; padding: 0.4rem 1.2rem; font-size: 0.9rem;">Cancelar</button>
-            <button type="button" id="confirm-add-members" class="btn" style="background-color: #1E6091; color: #fff; font-weight: 600; border-radius: 8px; padding: 0.4rem 1.4rem; font-size: 0.9rem;">Agregar</button>
-        </div>
-    </div>
-</div>
-
-<!-- Sub-Modal Create Participant -->
-<div id="modal-participant-quick" class="modal-overlay-custom">
-    <div class="modal-card-custom" style="max-width: 440px;">
-        <h3 class="modal-title mb-3" style="font-size: 1.1rem; font-weight: 700; color: #000;">Nuevo Participante</h3>
-        <div class="mb-3">
-            <label class="form-label" style="font-weight: 600;">Nombre y Apellido</label>
-            <input type="text" id="new-participant-name-detail" class="form-control" placeholder="Nombre y Apellido">
-        </div>
-        <div class="mb-3">
-            <label class="form-label" style="font-weight: 600;">Grupo (Obligatorio)</label>
-            <select id="new-participant-group-detail" class="form-select">
-                <option value="">-- Seleccionar grupo --</option>
-                {% for g in groups %}
-                <option value="{{ g.id }}">{{ g.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div id="participant-quick-error" class="modal-error-alert" style="display: none; color: #991B1B; background: #FEE2E2; border: 1px solid #FCA5A5; padding: 0.5rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 1rem;">
-            <i class="fas fa-exclamation-triangle me-1"></i>
-            <span class="error-msg-text"></span>
-        </div>
-        <div class="d-flex justify-content-end gap-2">
-            <button type="button" id="cancel-participant-quick" onclick="closeQuickParticipantModal()" class="btn btn-outline-secondary" style="border-radius: 8px; padding: 0.4rem 1rem; font-size: 0.85rem;">Cancelar</button>
-            <button type="button" id="save-participant-quick" class="btn" style="background-color: #2B7A9B; color: #fff; font-weight: 600; border-radius: 8px; padding: 0.4rem 1.2rem; font-size: 0.85rem;">Confirmar</button>
-        </div>
-    </div>
-</div>
-
-<!-- Sub-Modal Create Member -->
-<div id="modal-member-quick" class="modal-overlay-custom">
-    <div class="modal-card-custom" style="max-width: 400px;">
-        <h3 class="modal-title mb-3" style="font-size: 1.1rem; font-weight: 700; color: #000;">Nuevo Miembro</h3>
-        <input type="text" id="new-member-name-detail" class="form-control mb-2" placeholder="Nombre y Apellido">
-        <select id="new-member-role-detail" class="form-select mb-3">
-            <option value="">Seleccionar Rol</option>
-            <option value="Líder Científico/a">Líder Científico/a</option>
-            <option value="Co-investigador/a">Co-investigador/a</option>
-            <option value="Investigador/a Posdoctoral">Investigador/a Posdoctoral</option>
-            <option value="Coordinador/a de Investigación">Coordinador/a de Investigación</option>
-            <option value="Coordinador/a Clínico">Coordinador/a Clínico</option>
-            <option value="Neurólogo/a">Neurólogo/a</option>
-            <option value="Técnico/a en Neuroimagen">Técnico/a en Neuroimagen</option>
-            <option value="Ingeniero/a Biomédico/a">Ingeniero/a Biomédico/a</option>
-            <option value="Especialista en Procesamiento de Imágenes">Especialista en Procesamiento de Imágenes</option>
-            <option value="Asistente de Investigación">Asistente de Investigación</option>
-            <option value="Bioestadístico/a o Científico/a de Datos">Bioestadístico/a o Científico/a de Datos</option>
-        </select>
-        <div id="member-quick-error" class="modal-error-alert" style="display: none; color: #991B1B; background: #FEE2E2; border: 1px solid #FCA5A5; padding: 0.5rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 1rem;">
-            <i class="fas fa-exclamation-triangle me-1"></i>
-            <span class="error-msg-text"></span>
-        </div>
-        <div class="d-flex justify-content-end gap-2">
-            <button type="button" id="cancel-member-quick" onclick="closeQuickMemberModal()" class="btn btn-outline-secondary" style="border-radius: 8px; padding: 0.4rem 1rem; font-size: 0.85rem;">Cancelar</button>
-            <button type="button" id="save-member-quick" class="btn" style="background-color: #2B7A9B; color: #fff; font-weight: 600; border-radius: 8px; padding: 0.4rem 1.2rem; font-size: 0.85rem;">Confirmar</button>
-        </div>
-    </div>
-</div>
-
-<!-- Modal Confirmar Quitar Participante -->
-<div id="removeParticipantModal" class="modal-overlay-custom">
-    <div class="modal-card-custom" style="max-width: 440px; text-align: center; padding: 2rem;">
-        <h3 class="mb-2" style="font-weight: 700; color: #000; font-size: 1.2rem;">¿Desea quitar este participante del experimento?</h3>
-        <p style="color: #666; font-size: 0.95rem;" class="mb-4">Esta acción eliminará los datos asociados a este participante dentro de este experimento y no se puede deshacer.</p>
-        <div class="d-flex justify-content-center gap-3">
-            <button type="button" onclick="closeRemoveParticipantModal()" class="btn btn-outline-secondary" style="border-radius: 8px; padding: 0.5rem 1.5rem; font-weight: 500;">Cancelar</button>
-            <button type="button" id="btn-confirm-remove-participant" class="btn" style="background-color: #DC3545; color: #fff; font-weight: 600; border-radius: 8px; padding: 0.5rem 1.5rem;">Quitar</button>
-        </div>
-    </div>
-</div>
-
 <!-- Modal Confirmar Quitar Miembro -->
 <div id="removeMemberModal" class="modal-overlay-custom">
     <div class="modal-card-custom" style="max-width: 440px; text-align: center; padding: 2rem;">
@@ -569,6 +378,88 @@
         <div class="d-flex justify-content-center gap-3">
             <button type="button" onclick="closeRemoveMemberModal()" class="btn btn-outline-secondary" style="border-radius: 8px; padding: 0.5rem 1.5rem; font-weight: 500;">Cancelar</button>
             <button type="button" id="btn-confirm-remove-member" class="btn" style="background-color: #DC3545; color: #fff; font-weight: 600; border-radius: 8px; padding: 0.5rem 1.5rem;">Quitar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Administrar Miembros -->
+<div id="modal-manage-members" class="modal-overlay-custom">
+    <div class="modal-card-custom" style="max-width: 440px;">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="modal-title m-0" style="font-size: 1.2rem; font-weight: 700; color: #000;">Agregar Miembros del Equipo</h3>
+            <button type="button" class="btn-close" onclick="closeMembersModal()" aria-label="Cerrar"></button>
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label" style="font-weight: 600; font-size: 0.9rem;">Miembro Existente</label>
+            <select id="select-member-id" class="form-select" style="border-radius: 8px;">
+                <option value="">-- Seleccionar miembro existente --</option>
+                {% for m in available_members %}
+                <option value="{{ m.id }}">{{ m.first_name }} {{ m.last_name }}{% if m.role %} - {{ m.role }}{% endif %}</option>
+                {% endfor %}
+            </select>
+            {% if not available_members %}
+            <small class="text-muted d-block mt-1">No hay otros miembros registrados para este usuario.</small>
+            {% endif %}
+        </div>
+
+        <div id="add-member-error" class="modal-error-alert" style="display: none; color: #991B1B; background: #FEE2E2; border: 1px solid #FCA5A5; padding: 0.5rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 1rem;">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            <span class="error-msg-text"></span>
+        </div>
+
+        <div class="mb-3">
+            <span id="trigger-create-member" onclick="openQuickMemberModal()" class="link-quick-create" style="color: #2B7A9B; cursor: pointer; font-size: 0.9rem; text-decoration: underline; font-weight: 500;">+ Crear nuevo miembro</span>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-4">
+            <button type="button" id="cancel-manage-members" onclick="closeMembersModal()" class="btn btn-outline-secondary" style="border-radius: 8px; padding: 0.4rem 1.2rem; font-size: 0.9rem;">Cancelar</button>
+            <button type="button" id="confirm-add-members" class="btn" style="background-color: #2B7A9B; color: #fff; font-weight: 600; border-radius: 8px; padding: 0.4rem 1.4rem; font-size: 0.9rem;">Agregar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Sub-Modal Create Member -->
+<div id="modal-member-quick" class="modal-overlay-custom">
+    <div class="modal-card-custom" style="max-width: 440px;">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="modal-title m-0" style="font-size: 1.1rem; font-weight: 700; color: #000;">Nuevo Miembro del Equipo</h3>
+            <button type="button" class="btn-close" onclick="closeQuickMemberModal()" aria-label="Cerrar"></button>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" style="font-weight: 600; font-size: 0.9rem;">Nombre y Apellido</label>
+            <input type="text" id="new-member-name-detail" class="form-control" placeholder="Ej: Dr. Juan Pérez" style="border-radius: 8px;">
+        </div>
+        <div class="mb-3">
+            <label class="form-label" style="font-weight: 600; font-size: 0.9rem;">Rol / Función</label>
+            <select id="new-member-role-detail" class="form-select" style="border-radius: 8px;">
+                <option value="">Seleccionar Rol</option>
+                {% if role_choices %}
+                    {% for code, label in role_choices %}
+                    <option value="{{ code }}">{{ label }}</option>
+                    {% endfor %}
+                {% else %}
+                    <option value="Líder Científico/a">Líder Científico/a</option>
+                    <option value="Co-investigador/a">Co-investigador/a</option>
+                    <option value="Investigador/a Posdoctoral">Investigador/a Posdoctoral</option>
+                    <option value="Coordinador/a de Investigación">Coordinador/a de Investigación</option>
+                    <option value="Coordinador/a Clínico">Coordinador/a Clínico</option>
+                    <option value="Neurólogo/a">Neurólogo/a</option>
+                    <option value="Técnico/a en Neuroimagen">Técnico/a en Neuroimagen</option>
+                    <option value="Ingeniero/a Biomédico/a">Ingeniero/a Biomédico/a</option>
+                    <option value="Especialista en Procesamiento de Imágenes">Especialista en Procesamiento de Imágenes</option>
+                    <option value="Asistente de Investigación">Asistente de Investigación</option>
+                    <option value="Bioestadístico/a o Científico/a de Datos">Bioestadístico/a o Científico/a de Datos</option>
+                {% endif %}
+            </select>
+        </div>
+        <div id="member-quick-error" class="modal-error-alert" style="display: none; color: #991B1B; background: #FEE2E2; border: 1px solid #FCA5A5; padding: 0.5rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 1rem;">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            <span class="error-msg-text"></span>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mt-4">
+            <button type="button" id="cancel-member-quick" onclick="closeQuickMemberModal()" class="btn btn-outline-secondary" style="border-radius: 8px; padding: 0.4rem 1.2rem; font-size: 0.9rem;">Cancelar</button>
+            <button type="button" id="save-member-quick" class="btn" style="background-color: #2B7A9B; color: #fff; font-weight: 600; border-radius: 8px; padding: 0.4rem 1.4rem; font-size: 0.9rem;">Guardar y Asociar</button>
         </div>
     </div>
 </div>
@@ -607,6 +498,9 @@
     // Modal Handlers for Groups
     function openCreateGroupModal() {
         document.getElementById('new-group-name').value = '';
+        if (document.getElementById('new-group-description')) {
+            document.getElementById('new-group-description').value = '';
+        }
         hideModalError('create-group-error');
         toggleCustomModal('modal-create-group', true);
     }
@@ -614,54 +508,6 @@
     function closeCreateGroupModal() {
         hideModalError('create-group-error');
         toggleCustomModal('modal-create-group', false);
-    }
-
-    function viewGroupParticipants(groupId, groupName) {
-        document.getElementById('view-group-title').textContent = groupName;
-        const loading = document.getElementById('view-group-loading');
-        const emptyAlert = document.getElementById('view-group-empty');
-        const list = document.getElementById('view-group-list');
-
-        loading.style.display = 'block';
-        emptyAlert.style.display = 'none';
-        list.style.display = 'none';
-        list.innerHTML = '';
-
-        toggleCustomModal('modal-view-group', true);
-
-        fetch(`/experiment/{{ experiment.pk }}/groups/${groupId}/participants/`, {
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        })
-        .then(r => r.json())
-        .then(data => {
-            loading.style.display = 'none';
-            if (data.status === 'success') {
-                if (data.participants.length === 0) {
-                    emptyAlert.style.display = 'block';
-                } else {
-                    list.style.display = 'block';
-                    data.participants.forEach(p => {
-                        const li = document.createElement('li');
-                        li.className = 'list-group-item px-0 py-2 border-bottom';
-                        li.style.fontSize = '0.95rem';
-                        li.innerHTML = `<i class="fas fa-user me-2 text-secondary"></i>${p.name}`;
-                        list.appendChild(li);
-                    });
-                }
-            } else {
-                alert('Error: ' + data.message);
-                closeViewGroupModal();
-            }
-        })
-        .catch(err => {
-            loading.style.display = 'none';
-            alert('Error de conexión');
-            closeViewGroupModal();
-        });
-    }
-
-    function closeViewGroupModal() {
-        toggleCustomModal('modal-view-group', false);
     }
 
     function confirmDeleteGroup(groupId, groupName) {
@@ -676,56 +522,25 @@
         toggleCustomModal('modal-delete-group', false);
     }
 
-    function openAssignGroupModal(participantId, currentGroupId) {
-        document.getElementById('assign-group-participant-id').value = participantId;
-        const sel = document.getElementById('assign-group-select');
-        if (sel) sel.value = currentGroupId || '';
-        hideModalError('assign-group-error');
-        toggleCustomModal('modal-assign-group', true);
-    }
-
-    function closeAssignGroupModal() {
-        hideModalError('assign-group-error');
-        toggleCustomModal('modal-assign-group', false);
-    }
-
-    // Modal Handlers for Participants and Members
-    function openParticipantsModal() {
-        document.getElementById('select-participant-id').value = '';
-        document.getElementById('select-participant-group-id').value = '';
-        hideModalError('add-participant-error');
-        toggleCustomModal('modal-manage-participants', true);
-    }
-
-    function closeParticipantsModal() {
-        hideModalError('add-participant-error');
-        toggleCustomModal('modal-manage-participants', false);
-    }
-
-    function openQuickParticipantModal() {
-        document.getElementById('new-participant-name-detail').value = '';
-        document.getElementById('new-participant-group-detail').value = '';
-        hideModalError('participant-quick-error');
-        toggleCustomModal('modal-participant-quick', true);
-    }
-
-    function closeQuickParticipantModal() {
-        hideModalError('participant-quick-error');
-        toggleCustomModal('modal-participant-quick', false);
-    }
-
+    // Modal Handlers for Members
     function openMembersModal() {
-        document.getElementById('select-member-id').value = '';
+        const select = document.getElementById('select-member-id');
+        if (select) select.value = '';
+        hideModalError('add-member-error');
         toggleCustomModal('modal-manage-members', true);
     }
 
     function closeMembersModal() {
+        hideModalError('add-member-error');
         toggleCustomModal('modal-manage-members', false);
     }
 
     function openQuickMemberModal() {
-        document.getElementById('new-member-name-detail').value = '';
-        document.getElementById('new-member-role-detail').value = '';
+        toggleCustomModal('modal-manage-members', false);
+        const nameInput = document.getElementById('new-member-name-detail');
+        const roleInput = document.getElementById('new-member-role-detail');
+        if (nameInput) nameInput.value = '';
+        if (roleInput) roleInput.value = '';
         hideModalError('member-quick-error');
         toggleCustomModal('modal-member-quick', true);
     }
@@ -869,7 +684,9 @@
         // Action: Create Group AJAX
         document.getElementById('confirm-create-group-btn')?.addEventListener('click', () => {
             const nameInput = document.getElementById('new-group-name');
+            const descInput = document.getElementById('new-group-description');
             const name = nameInput ? nameInput.value.trim() : '';
+            const description = descInput ? descInput.value.trim() : '';
             hideModalError('create-group-error');
 
             if (!name) {
@@ -880,7 +697,7 @@
             fetch("{% url 'create_group_ajax' experiment.pk %}", {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                body: JSON.stringify({ name: name })
+                body: JSON.stringify({ name: name, description: description })
             })
             .then(r => r.json())
             .then(data => {
@@ -909,14 +726,28 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
             })
-            .then(r => r.json())
-            .then(data => {
+            .then(async r => {
+                const data = await r.json();
+                return { ok: r.ok, data: data };
+            })
+            .then(res => {
                 btn.disabled = false;
                 btn.textContent = 'Eliminar';
-                if (data.status === 'success') {
-                    location.reload();
+                if (res.ok && res.data.status === 'success') {
+                    closeDeleteGroupModal();
+                    const groupRow = document.getElementById('group-row-' + groupId);
+                    if (groupRow) {
+                        groupRow.remove();
+                    }
+                    const remainingRows = document.querySelectorAll('.group-row-detail');
+                    if (remainingRows.length === 0) {
+                        const body = document.getElementById('groups-list-body');
+                        if (body) {
+                            body.innerHTML = '<p id="no-groups-msg" style="text-align: center; color: #95a5a6; padding: 2rem 0; margin: 0;">No hay grupos registrados en este experimento. Haga clic en <strong>+</strong> para crear uno.</p>';
+                        }
+                    }
                 } else {
-                    showModalError('delete-group-error', data.message);
+                    showModalError('delete-group-error', res.data.message || 'Error al eliminar grupo.');
                 }
             })
             .catch(err => {
@@ -926,112 +757,12 @@
             });
         });
 
-        // Action: Assign / Change Group AJAX
-        document.getElementById('confirm-assign-group-btn')?.addEventListener('click', () => {
-            const participantId = document.getElementById('assign-group-participant-id').value;
-            const groupId = document.getElementById('assign-group-select').value;
-            hideModalError('assign-group-error');
-
-            if (!groupId) {
-                showModalError('assign-group-error', 'Debe seleccionar un grupo.');
-                return;
-            }
-
-            fetch("{% url 'assign_participant_group_ajax' experiment.pk %}", {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                body: JSON.stringify({ participant_id: participantId, group_id: groupId })
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    location.reload();
-                } else {
-                    showModalError('assign-group-error', data.message);
-                }
-            })
-            .catch(err => {
-                showModalError('assign-group-error', 'Error de conexión.');
-            });
-        });
-
-        // Action: Add Existing Participant to Experiment + Group
-        document.getElementById('confirm-add-participants')?.addEventListener('click', () => {
-            const participantId = document.getElementById('select-participant-id').value;
-            const groupId = document.getElementById('select-participant-group-id').value;
-            hideModalError('add-participant-error');
-
-            if (!participantId) {
-                showModalError('add-participant-error', 'Por favor seleccione un participante.');
-                return;
-            }
-            if (!groupId) {
-                showModalError('add-participant-error', 'Debe seleccionar un grupo obligatoriamente para este experimento.');
-                return;
-            }
-
-            fetch("{% url 'add_participants_to_experiment' experiment.pk %}", {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                body: JSON.stringify({ participant_id: participantId, group_id: groupId })
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    location.reload();
-                } else {
-                    showModalError('add-participant-error', data.message);
-                }
-            })
-            .catch(err => {
-                showModalError('add-participant-error', 'Error de conexión.');
-            });
-        });
-
-        // Action: Quick Create Participant + Assign Group
-        document.getElementById('save-participant-quick')?.addEventListener('click', () => {
-            const nameInput = document.getElementById('new-participant-name-detail');
-            const groupSelect = document.getElementById('new-participant-group-detail');
-            const name = nameInput ? nameInput.value.trim() : '';
-            const groupId = groupSelect ? groupSelect.value : '';
-            hideModalError('participant-quick-error');
-
-            if (!name) {
-                showModalError('participant-quick-error', 'Por favor ingresa un nombre.');
-                return;
-            }
-            if (!groupId) {
-                showModalError('participant-quick-error', 'Debe seleccionar un grupo obligatoriamente.');
-                return;
-            }
-
-            fetch("{% url 'create_participant_ajax' %}", {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                body: JSON.stringify({
-                    full_name: name,
-                    experiment_id: {{ experiment.pk }},
-                    group_id: groupId
-                })
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    location.reload();
-                } else {
-                    showModalError('participant-quick-error', data.message);
-                }
-            })
-            .catch(err => {
-                showModalError('participant-quick-error', 'Error de conexión.');
-            });
-        });
-
         // Action: Confirm Add Member
         document.getElementById('confirm-add-members')?.addEventListener('click', () => {
-            const memberId = document.getElementById('select-member-id').value;
+            const memberId = document.getElementById('select-member-id')?.value;
+            hideModalError('add-member-error');
             if (!memberId) {
-                alert('Por favor selecciona un miembro.');
+                showModalError('add-member-error', 'Por favor selecciona un miembro.');
                 return;
             }
 
@@ -1045,11 +776,11 @@
                 if (data.status === 'success') {
                     location.reload();
                 } else {
-                    alert('Error: ' + data.message);
+                    showModalError('add-member-error', data.message || 'Error al agregar miembro.');
                 }
             })
             .catch(err => {
-                alert('Error de conexión');
+                showModalError('add-member-error', 'Error de conexión');
             });
         });
 
@@ -1096,26 +827,7 @@
             });
         });
 
-        // Action: Confirm Remove Participant
-        document.getElementById('btn-confirm-remove-participant')?.addEventListener('click', () => {
-            if (!participantToRemoveId) return;
 
-            fetch(`/experiment/{{ experiment.pk }}/remove_participant/${participantToRemoveId}/`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    location.reload();
-                } else {
-                    alert('Error: ' + data.message);
-                }
-            })
-            .catch(err => {
-                alert('Error de conexión');
-            });
-        });
 
         // Action: Confirm Remove Member
         document.getElementById('btn-confirm-remove-member')?.addEventListener('click', () => {

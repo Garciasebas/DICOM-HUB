@@ -179,7 +179,7 @@ class SelectorIsolationTestCase(TestCase):
 
         res_create_m = self.client1.post(
             reverse('create_member_ajax'),
-            data=json_bytes({'full_name': f'NuevoMem_{self.uid} Test', 'role': 'Físico/a Medico/a'}),
+            data=json_bytes({'full_name': f'NuevoMem_{self.uid} Test', 'role': 'Ingeniero/a Biomédico/a'}),
             content_type='application/json',
             HTTP_X_REQUESTED_WITH='XMLHttpRequest'
         )

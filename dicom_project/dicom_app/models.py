@@ -57,6 +57,7 @@ class ParticipantGroup(models.Model):
         related_name='groups'
     )
     name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, verbose_name="Descripción")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

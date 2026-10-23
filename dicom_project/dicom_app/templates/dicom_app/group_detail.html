@@ -1,0 +1,774 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid p-0" style="background-color: #E6F0FF; min-height: 100vh;">
+    <!-- Header Title -->
+    <div class="row mb-4 pt-4">
+        <div class="col-12 text-center">
+            <h1 style="color: #5B7CFA; font-weight: 800; font-size: 2.5rem; letter-spacing: 2px;">DICOM HUB</h1>
+        </div>
+    </div>
+
+    <!-- Breadcrumb -->
+    <div class="row justify-content-center px-4 mb-3">
+        <div class="col-12 col-xl-10">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb breadcrumb-custom">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="breadcrumb-link">Listado de Experimentos</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'experiment_detail' experiment.pk %}" class="breadcrumb-link">Detalle del Experimento</a></li>
+                    <li class="breadcrumb-item active" aria-current="page" id="breadcrumb-group-name">Detalle del Grupo: {{ group.name }}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Main Card -->
+    <div class="row justify-content-center px-4 mb-5">
+        <div class="col-12 col-xl-10">
+            <div class="card border-0 shadow-sm" style="border-radius: 20px; padding: 2rem;">
+                <div class="card-body p-0">
+
+                    <!-- Messages -->
+                    {% if messages %}
+                    <div class="mb-4">
+                        {% for message in messages %}
+                        <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags|default:'info' }}{% endif %} alert-dismissible fade show" role="alert" style="border-radius: 12px;">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="form-header-custom">
+                        <div>
+                            <!-- Non-editable Experiment Name -->
+                            <div class="mb-2">
+                                <span class="detail-meta-text" style="color: #64748B; font-size: 0.95rem; font-weight: 600;">
+                                    <i class="fas fa-flask me-1" style="color: #2B7A9B;"></i>Experimento: <strong style="color: #1E293B;">{{ experiment.name }}</strong>
+                                </span>
+                            </div>
+
+                            <h2 class="form-title-left">Detalle del Grupo</h2>
+                            <p class="detail-meta-text mb-3"><strong>Fecha de creación:</strong> {{ group.created_at|date:"Y-m-d H:i" }}</p>
+
+                            <!-- Editable Group Name -->
+                            <div class="mb-3">
+                                <div id="group-name-display-container" style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <p class="detail-meta-text m-0"><strong>Nombre del grupo:</strong> <span id="group-name-display-text">{{ group.name }}</span></p>
+                                    <button id="btn-edit-group-name" class="btn-edit-small" title="Editar nombre del grupo">
+                                        <i class="fas fa-pen"></i> Editar
+                                    </button>
+                                </div>
+                                <div id="group-name-edit-container" style="display: none; margin-top: 0.5rem;">
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                        <input type="text" id="group-name-input" class="form-control" style="max-width: 350px;" value="{{ group.name }}">
+                                        <button id="btn-save-group-name" class="btn-save-teal">Guardar cambios</button>
+                                        <button id="btn-cancel-group-name" class="btn-cancel-outline">Cancelar</button>
+                                    </div>
+                                    <div id="group-name-error" class="text-danger mt-1 style-error" style="display: none; font-size: 0.875rem;"></div>
+                                </div>
+                            </div>
+
+                            <!-- Editable Group Description -->
+                            <div class="mb-3">
+                                <div id="group-description-display-container" style="display: flex; align-items: flex-start; gap: 0.5rem;">
+                                    <p class="detail-meta-text m-0">
+                                        <strong>Descripción:</strong>
+                                        <span id="group-description-display-text">
+                                            {% if group.description %}
+                                                {{ group.description }}
+                                            {% else %}
+                                                <span class="text-muted fst-italic">Sin descripción</span>
+                                            {% endif %}
+                                        </span>
+                                    </p>
+                                    <button id="btn-edit-group-description" class="btn-edit-small" title="Editar descripción del grupo">
+                                        <i class="fas fa-pen"></i> Editar
+                                    </button>
+                                </div>
+                                <div id="group-description-edit-container" style="display: none; margin-top: 0.5rem;">
+                                    <textarea id="group-description-input" class="textarea-custom"
+                                        style="width: 100%; min-height: 100px;">{{ group.description }}</textarea>
+                                    <div class="form-actions-right" style="margin-top: 10px; justify-content: flex-end;">
+                                        <button id="btn-cancel-group-description" class="btn-cancel-outline">Cancelar</button>
+                                        <button id="btn-save-group-description" class="btn-save-teal">Guardar cambios</button>
+                                    </div>
+                                    <div id="group-description-error" class="text-danger mt-1 style-error" style="display: none; font-size: 0.875rem;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions-right">
+                            <a href="{% url 'experiment_detail' experiment.pk %}" class="btn-cancel-outline">
+                                ← Atrás
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Section: Participantes -->
+                    <div class="d-flex align-items-center justify-content-between mb-3 mt-4">
+                        <h3 class="section-title-centered-large m-0">Participantes</h3>
+                        <button type="button" id="btn-add-participant-group" onclick="openAddParticipantSearchModal()" class="btn-add-plus" title="Agregar participante al grupo" aria-label="Agregar participante al grupo"><i class="fas fa-plus"></i></button>
+                    </div>
+
+                    <!-- Table styled uniformly with Groups table in experiment_detail.html -->
+                    <div id="participants-list-container" class="participants-table mb-4" style="background: white; border-radius: 12px; border: 1px solid #E2E8F0; overflow: hidden;">
+                        <div class="participant-table-header" style="display: grid; grid-template-columns: 1fr 40px; align-items: center; gap: 1rem; padding: 0.75rem 1rem; background: #F1F5F9; font-weight: 700; font-size: 0.85rem; color: #475569; text-transform: uppercase;">
+                            <div>Nombre del participante</div>
+                            <div class="text-end"></div>
+                        </div>
+                        <div id="participants-list-body">
+                            {% for ep in experiment_participants %}
+                            <div class="participant-row-detail" id="participant-row-{{ ep.participant.id }}" style="display: grid; grid-template-columns: 1fr 40px; align-items: center; gap: 1rem; padding: 0.75rem 1rem; border-bottom: 1px solid #E2E8F0;">
+                                <div class="participant-name-bold">
+                                    <a href="{% url 'participant_experiment_dicoms' ep.participant.pk experiment.pk %}?from_group={{ group.pk }}" class="participant-name-link" style="color: #1E6091; text-decoration: none; font-weight: 600;">
+                                        <i class="fas fa-user me-2" style="color: #2B7A9B;"></i>{{ ep.participant.first_name }} {{ ep.participant.last_name }}
+                                    </a>
+                                </div>
+                                <div class="participant-action-col action-col-x text-end">
+                                    <button type="button" class="btn btn-sm btn-outline-danger btn-remove-x" onclick="confirmRemoveParticipantFromGroup('{{ ep.participant.id }}', '{{ ep.participant.first_name|escapejs }} {{ ep.participant.last_name|escapejs }}')" title="Eliminar participante del grupo" aria-label="Eliminar participante del grupo"><i class="fas fa-times"></i></button>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <p id="no-participants-msg" style="text-align: center; color: #95a5a6; padding: 2rem 0; margin: 0;">Este grupo todavía no tiene participantes.</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<!-- Modal Agregar Participante (Buscar Existente o Crear Nuevo) -->
+<div id="modal-add-participant-search" class="modal-overlay-custom">
+    <div class="modal-container-custom" style="max-width: 650px; background: white; border-radius: 16px; padding: 1.75rem; box-shadow: 0 10px 25px rgba(0,0,0,0.15); width: 92%;">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h4 style="margin: 0; font-weight: 700; color: #1E293B;">Agregar participante</h4>
+                <small style="color: #64748B; font-size: 0.875rem;">
+                    <strong>Experimento:</strong> {{ experiment.name }} | <strong>Grupo:</strong> {{ group.name }}
+                </small>
+            </div>
+            <button type="button" class="btn-close" onclick="closeAddParticipantSearchModal()" aria-label="Cerrar"></button>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="mb-3">
+            <div class="input-group">
+                <input type="text" id="participant-search-input" class="form-control" placeholder="Buscar por nombre o apellido..." style="border-radius: 8px 0 0 8px; border: 1px solid #CBD5E1;">
+                <button type="button" id="btn-participant-search" onclick="performParticipantSearch()" class="btn" style="background-color: #2B7A9B; color: white; border-radius: 0 8px 8px 0; font-weight: 600;">
+                    <i class="fas fa-search me-1"></i>Buscar
+                </button>
+            </div>
+        </div>
+
+        <div id="modal-search-error" class="alert alert-danger mb-3" style="display: none; font-size: 0.875rem; border-radius: 8px;"></div>
+        <div id="modal-search-info" class="alert alert-info mb-3" style="display: none; font-size: 0.875rem; border-radius: 8px;"></div>
+
+        <!-- Search Results Table -->
+        <div class="table-responsive bg-white mb-4" style="max-height: 280px; overflow-y: auto; border-radius: 10px; border: 1px solid #E2E8F0;">
+            <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+                <thead style="position: sticky; top: 0; background: #F1F5F9; z-index: 10;">
+                    <tr style="font-size: 0.825rem; text-transform: uppercase; color: #475569;">
+                        <th scope="col" class="py-2.5 px-3" style="font-weight: 700;">Participante</th>
+                        <th scope="col" class="py-2.5 px-3 text-end" style="font-weight: 700;">Acción</th>
+                    </tr>
+                </thead>
+                <tbody id="participant-search-results-body">
+                    <tr>
+                        <td colspan="2" class="text-center py-4 text-muted">Cargando participantes...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="d-flex justify-content-start align-items-center pt-2 border-top">
+            <a href="{% url 'add_participant_to_group' experiment.pk group.pk %}" class="btn-save-teal" style="text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.9rem;">
+                <i class="fas fa-user-plus"></i>Crear participante nuevo
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmar Eliminación Participante del Grupo -->
+<div id="modal-remove-participant-group" class="modal-overlay-custom">
+    <div class="modal-container-custom" style="max-width: 480px; background: white; border-radius: 16px; padding: 1.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.15);">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 style="margin: 0; font-weight: 700; color: #1E293B;">Confirmar eliminación</h4>
+            <button type="button" class="btn-close" onclick="closeRemoveParticipantModal()" aria-label="Cerrar"></button>
+        </div>
+        <p style="color: #475569; font-size: 0.95rem; margin-bottom: 1.5rem;">
+            ¿Está seguro de que desea eliminar a <strong id="remove-participant-name-text"></strong> de este grupo?
+        </p>
+        <div id="modal-remove-error" class="alert alert-danger mb-3" style="display: none; font-size: 0.875rem;"></div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+            <button type="button" class="btn-cancel-outline" onclick="closeRemoveParticipantModal()">Cancelar</button>
+            <button type="button" id="btn-confirm-remove-participant" class="btn-delete-red" style="background: #DC3545; color: white; border: none; padding: 0.4rem 1rem; border-radius: 6px; font-weight: 600;">Eliminar</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .content-area {
+        background-color: #E6F0FF !important;
+        padding: 0 !important;
+    }
+
+    .participant-name-link {
+        color: #1E6091;
+        text-decoration: none;
+        font-weight: 600;
+        display: inline-block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: middle;
+        transition: color 0.2s;
+    }
+
+    .participant-name-link:hover {
+        color: #2B7A9B;
+        text-decoration: underline;
+    }
+
+    .btn-edit-small {
+        background: none;
+        border: none;
+        color: #BDBDBD;
+        cursor: pointer;
+        font-size: 0.85rem;
+        margin-left: 8px;
+        text-decoration: underline;
+        transition: color 0.2s;
+        padding: 0;
+    }
+
+    .btn-edit-small:hover {
+        color: #2B7A9B;
+    }
+
+    .btn-add-plus,
+    .btn-icon-add {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        font-size: 0.875rem;
+        color: #2B7A9B;
+        background-color: transparent;
+        border: 1px solid #2B7A9B;
+        border-radius: 6px;
+        cursor: pointer;
+        line-height: 1;
+        text-decoration: none;
+        transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+
+    .btn-add-plus:hover,
+    .btn-icon-add:hover {
+        color: #FFFFFF;
+        background-color: #2B7A9B;
+        border-color: #2B7A9B;
+    }
+
+    .btn-add-plus:focus,
+    .btn-icon-add:focus {
+        color: #FFFFFF;
+        background-color: #2B7A9B;
+        border-color: #2B7A9B;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(43, 122, 155, 0.25);
+    }
+
+    .btn-remove-x {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        font-size: 0.875rem;
+        color: #DC3545;
+        background-color: transparent;
+        border: 1px solid #DC3545;
+        border-radius: 6px;
+        cursor: pointer;
+        line-height: 1;
+        text-decoration: none;
+        transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+
+    .btn-remove-x:hover {
+        color: #FFFFFF;
+        background-color: #DC3545;
+        border-color: #DC3545;
+    }
+
+    .btn-remove-x:focus {
+        color: #FFFFFF;
+        background-color: #DC3545;
+        border-color: #DC3545;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+    }
+
+    .btn-save-teal {
+        background: #2B7A9B;
+        color: white;
+        border: none;
+        padding: 0.4rem 1rem;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .btn-save-teal:hover {
+        background: #236a8a;
+    }
+
+    .btn-cancel-outline {
+        background: transparent;
+        color: #64748B;
+        border: 1px solid #CBD5E1;
+        padding: 0.4rem 1rem;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        text-decoration: none;
+        display: inline-block;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-cancel-outline:hover {
+        background: #F1F5F9;
+        color: #334155;
+    }
+
+    .textarea-custom {
+        border: 1px solid #CBD5E1;
+        border-radius: 8px;
+        padding: 0.75rem;
+        font-size: 0.95rem;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+
+    .textarea-custom:focus {
+        border-color: #2B7A9B;
+    }
+
+    .modal-overlay-custom {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.2s;
+    }
+
+    .modal-overlay-custom.active {
+        opacity: 1;
+        visibility: visible;
+    }
+</style>
+
+<script>
+    let targetParticipantId = null;
+
+    function getCsrfToken() {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, 10) === ('csrftoken=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(10));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+
+
+    function openAddParticipantSearchModal() {
+        const modal = document.getElementById('modal-add-participant-search');
+        if (modal) modal.classList.add('active');
+        const input = document.getElementById('participant-search-input');
+        if (input) {
+            input.value = '';
+            input.focus();
+        }
+        const errorDiv = document.getElementById('modal-search-error');
+        if (errorDiv) errorDiv.style.display = 'none';
+        const infoDiv = document.getElementById('modal-search-info');
+        if (infoDiv) infoDiv.style.display = 'none';
+
+        performParticipantSearch('');
+    }
+
+    function closeAddParticipantSearchModal() {
+        const modal = document.getElementById('modal-add-participant-search');
+        if (modal) modal.classList.remove('active');
+    }
+
+    function performParticipantSearch(queryOverride) {
+        const queryInput = document.getElementById('participant-search-input');
+        const query = queryOverride !== undefined ? queryOverride : (queryInput ? queryInput.value.trim() : '');
+        const tbody = document.getElementById('participant-search-results-body');
+        const errorDiv = document.getElementById('modal-search-error');
+        if (errorDiv) errorDiv.style.display = 'none';
+
+        const url = `{% url 'add_participant_to_group' experiment.pk group.pk %}?action=search&q=${encodeURIComponent(query)}`;
+
+        fetch(url, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                renderParticipantSearchResults(data.participants);
+            } else {
+                if (errorDiv) {
+                    errorDiv.textContent = data.message || 'Error al buscar participantes.';
+                    errorDiv.style.display = 'block';
+                }
+            }
+        })
+        .catch(err => {
+            if (errorDiv) {
+                errorDiv.textContent = 'Error de comunicación con el servidor.';
+                errorDiv.style.display = 'block';
+            }
+        });
+    }
+
+    function renderParticipantSearchResults(participants) {
+        const tbody = document.getElementById('participant-search-results-body');
+        if (!tbody) return;
+
+        if (!participants || participants.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="2" class="text-center py-4 text-muted">
+                        No se encontraron participantes que coincidan con la búsqueda.
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        let html = '';
+        participants.forEach(p => {
+            let statusBadge = '';
+            let actionBtn = '';
+
+            if (p.status_code === 'in_current_group') {
+                statusBadge = `<span class="badge bg-secondary ms-2" style="font-size: 0.75rem;">Ya en este grupo</span>`;
+                actionBtn = `<button type="button" class="btn btn-sm btn-secondary" disabled style="border-radius: 6px;">Ya agregado</button>`;
+            } else if (p.status_code === 'in_other_group') {
+                statusBadge = `<span class="badge bg-warning text-dark ms-2" style="font-size: 0.75rem;">En grupo '${p.other_group_name}'</span>`;
+                actionBtn = `<button type="button" class="btn btn-sm btn-outline-warning text-dark" onclick="selectExistingParticipant(${p.id}, false)" style="border-radius: 6px; font-weight: 600;">Mover a este grupo</button>`;
+            } else if (p.status_code === 'in_experiment_no_group') {
+                statusBadge = `<span class="badge bg-info text-dark ms-2" style="font-size: 0.75rem;">En experimento (sin grupo)</span>`;
+                actionBtn = `<button type="button" class="btn btn-sm" onclick="selectExistingParticipant(${p.id}, false)" style="background-color: #2B7A9B; color: white; border-radius: 6px; font-weight: 600;">Asignar a este grupo</button>`;
+            } else {
+                actionBtn = `<button type="button" class="btn btn-sm" onclick="selectExistingParticipant(${p.id}, false)" style="background-color: #2B7A9B; color: white; border-radius: 6px; font-weight: 600;">Seleccionar y asociar</button>`;
+            }
+
+            html += `
+                <tr>
+                    <td class="py-2.5 px-3">
+                        <span style="font-weight: 600; color: #1E293B;">
+                            <i class="fas fa-user me-2" style="color: #2B7A9B;"></i>${p.first_name} ${p.last_name}
+                        </span>
+                        ${statusBadge}
+                    </td>
+                    <td class="py-2.5 px-3 text-end">
+                        ${actionBtn}
+                    </td>
+                </tr>`;
+        });
+
+        tbody.innerHTML = html;
+    }
+
+    function selectExistingParticipant(participantId, confirmMove) {
+        const errorDiv = document.getElementById('modal-search-error');
+        const infoDiv = document.getElementById('modal-search-info');
+        if (errorDiv) errorDiv.style.display = 'none';
+        if (infoDiv) infoDiv.style.display = 'none';
+
+        const formData = new FormData();
+        formData.append('mode', 'existing');
+        formData.append('participant_id', participantId);
+        if (confirmMove) {
+            formData.append('confirm_move', 'true');
+        }
+
+        fetch("{% url 'add_participant_to_group' experiment.pk group.pk %}", {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: formData
+        })
+        .then(res => res.json().then(data => ({ status: res.status, body: data })))
+        .then(res => {
+            if (res.body.status === 'success') {
+                window.location.href = res.body.redirect_url || window.location.href;
+            } else if (res.body.status === 'confirm_required') {
+                if (infoDiv) {
+                    infoDiv.innerHTML = `
+                        <div class="d-flex flex-column gap-2">
+                            <div><i class="fas fa-exclamation-triangle me-1"></i>${res.body.message}</div>
+                            <div class="text-end">
+                                <button type="button" class="btn btn-sm btn-danger me-1" onclick="selectExistingParticipant(${participantId}, true)">
+                                    Confirmar traslado
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('modal-search-info').style.display='none'">
+                                    Cancelar
+                                </button>
+                            </div>
+                        </div>`;
+                    infoDiv.style.display = 'block';
+                }
+            } else if (res.body.status === 'info') {
+                if (infoDiv) {
+                    infoDiv.textContent = res.body.message;
+                    infoDiv.style.display = 'block';
+                }
+            } else {
+                if (errorDiv) {
+                    errorDiv.textContent = res.body.message || 'Ocurrió un error al asociar el participante.';
+                    errorDiv.style.display = 'block';
+                }
+            }
+        })
+        .catch(err => {
+            if (errorDiv) {
+                errorDiv.textContent = 'Error de comunicación con el servidor.';
+                errorDiv.style.display = 'block';
+            }
+        });
+    }
+
+    function confirmRemoveParticipantFromGroup(participantId, participantName) {
+        targetParticipantId = participantId;
+        const nameElem = document.getElementById('remove-participant-name-text');
+        if (nameElem) nameElem.textContent = participantName;
+
+        const errorDiv = document.getElementById('modal-remove-error');
+        if (errorDiv) errorDiv.style.display = 'none';
+
+        const modal = document.getElementById('modal-remove-participant-group');
+        if (modal) modal.classList.add('active');
+    }
+
+    function closeRemoveParticipantModal() {
+        targetParticipantId = null;
+        const modal = document.getElementById('modal-remove-participant-group');
+        if (modal) modal.classList.remove('active');
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+
+
+        // --- REMOVE PARTICIPANT FROM GROUP ---
+        const btnConfirmRemove = document.getElementById('btn-confirm-remove-participant');
+        if (btnConfirmRemove) {
+            btnConfirmRemove.addEventListener('click', function () {
+                if (!targetParticipantId) return;
+
+                const url = `/experiment/{{ experiment.pk }}/groups/{{ group.pk }}/remove_participant/${targetParticipantId}/`;
+
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
+                    }
+                })
+                .then(response => response.json().then(data => ({ status: response.status, body: data })))
+                .then(res => {
+                    if (res.status === 200 && res.body.status === 'success') {
+                        const row = document.getElementById(`participant-row-${targetParticipantId}`);
+                        if (row) row.remove();
+
+                        closeRemoveParticipantModal();
+
+                        const body = document.getElementById('participants-list-body');
+                        if (body && body.querySelectorAll('.participant-row-detail').length === 0) {
+                            body.innerHTML = '<p id="no-participants-msg" style="text-align: center; color: #95a5a6; padding: 2rem 0; margin: 0;">Este grupo todavía no tiene participantes.</p>';
+                        }
+                    } else {
+                        const errorDiv = document.getElementById('modal-remove-error');
+                        if (errorDiv) {
+                            errorDiv.textContent = res.body.message || 'Error al eliminar participante del grupo.';
+                            errorDiv.style.display = 'block';
+                        }
+                    }
+                })
+                .catch(err => {
+                    const errorDiv = document.getElementById('modal-remove-error');
+                    if (errorDiv) {
+                        errorDiv.textContent = 'Error en la comunicación con el servidor.';
+                        errorDiv.style.display = 'block';
+                    }
+                });
+            });
+        }
+
+        // --- EDIT GROUP NAME ---
+        const btnEditName = document.getElementById('btn-edit-group-name');
+        const btnCancelName = document.getElementById('btn-cancel-group-name');
+        const btnSaveName = document.getElementById('btn-save-group-name');
+        const nameDisplayContainer = document.getElementById('group-name-display-container');
+        const nameEditContainer = document.getElementById('group-name-edit-container');
+        const nameInput = document.getElementById('group-name-input');
+        const nameDisplayText = document.getElementById('group-name-display-text');
+        const nameError = document.getElementById('group-name-error');
+        const breadcrumbGroupName = document.getElementById('breadcrumb-group-name');
+
+        if (btnEditName) {
+            btnEditName.addEventListener('click', function () {
+                nameDisplayContainer.style.display = 'none';
+                nameEditContainer.style.display = 'block';
+                nameError.style.display = 'none';
+                nameInput.focus();
+            });
+        }
+
+        if (btnCancelName) {
+            btnCancelName.addEventListener('click', function () {
+                nameEditContainer.style.display = 'none';
+                nameDisplayContainer.style.display = 'flex';
+                nameError.style.display = 'none';
+            });
+        }
+
+        if (btnSaveName) {
+            btnSaveName.addEventListener('click', function () {
+                const newName = nameInput.value.trim();
+                if (!newName) {
+                    nameError.textContent = 'El nombre del grupo no puede estar vacío.';
+                    nameError.style.display = 'block';
+                    return;
+                }
+
+                fetch("{% url 'update_group_name_ajax' experiment.pk group.pk %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    body: JSON.stringify({ name: newName })
+                })
+                .then(response => response.json().then(data => ({ status: response.status, body: data })))
+                .then(res => {
+                    if (res.status === 200 && res.body.status === 'success') {
+                        nameDisplayText.textContent = res.body.name;
+                        if (breadcrumbGroupName) {
+                            breadcrumbGroupName.textContent = 'Detalle del Grupo: ' + res.body.name;
+                        }
+                        nameEditContainer.style.display = 'none';
+                        nameDisplayContainer.style.display = 'flex';
+                        nameError.style.display = 'none';
+                    } else {
+                        nameError.textContent = res.body.message || 'Error al actualizar el nombre del grupo.';
+                        nameError.style.display = 'block';
+                    }
+                })
+                .catch(err => {
+                    nameError.textContent = 'Error en la comunicación con el servidor.';
+                    nameError.style.display = 'block';
+                });
+            });
+        }
+
+        // --- EDIT GROUP DESCRIPTION ---
+        const btnEditDescription = document.getElementById('btn-edit-group-description');
+        const btnCancelDescription = document.getElementById('btn-cancel-group-description');
+        const btnSaveDescription = document.getElementById('btn-save-group-description');
+        const descriptionDisplayContainer = document.getElementById('group-description-display-container');
+        const descriptionEditContainer = document.getElementById('group-description-edit-container');
+        const descriptionInput = document.getElementById('group-description-input');
+        const descriptionDisplayText = document.getElementById('group-description-display-text');
+        const descriptionError = document.getElementById('group-description-error');
+
+        if (btnEditDescription) {
+            btnEditDescription.addEventListener('click', function () {
+                descriptionDisplayContainer.style.display = 'none';
+                descriptionEditContainer.style.display = 'block';
+                descriptionError.style.display = 'none';
+                descriptionInput.focus();
+            });
+        }
+
+        if (btnCancelDescription) {
+            btnCancelDescription.addEventListener('click', function () {
+                descriptionEditContainer.style.display = 'none';
+                descriptionDisplayContainer.style.display = 'flex';
+                descriptionError.style.display = 'none';
+            });
+        }
+
+        if (btnSaveDescription) {
+            btnSaveDescription.addEventListener('click', function () {
+                const newDesc = descriptionInput.value.trim();
+
+                fetch("{% url 'update_group_description_ajax' experiment.pk group.pk %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    body: JSON.stringify({ description: newDesc })
+                })
+                .then(response => response.json().then(data => ({ status: response.status, body: data })))
+                .then(res => {
+                    if (res.status === 200 && res.body.status === 'success') {
+                        if (res.body.description) {
+                            descriptionDisplayText.textContent = res.body.description;
+                        } else {
+                            descriptionDisplayText.innerHTML = '<span class="text-muted fst-italic">Sin descripción</span>';
+                        }
+                        descriptionEditContainer.style.display = 'none';
+                        descriptionDisplayContainer.style.display = 'flex';
+                        descriptionError.style.display = 'none';
+                    } else {
+                        descriptionError.textContent = res.body.message || 'Error al actualizar la descripción del grupo.';
+                        descriptionError.style.display = 'block';
+                    }
+                })
+                .catch(err => {
+                    descriptionError.textContent = 'Error en la comunicación con el servidor.';
+                    descriptionError.style.display = 'block';
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}
